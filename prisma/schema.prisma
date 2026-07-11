@@ -1,0 +1,118 @@
+// Prisma Schema — Paseito Marketplace
+// Modelos para inmuebles, vehículos, tours virtuales 360°
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// Enums
+// ============================================
+
+enum ListingType {
+  APARTMENT
+  HOUSE
+  VEHICLE
+}
+
+enum ListingStatus {
+  DRAFT
+  ACTIVE
+  SOLD
+  PAUSED
+}
+
+enum HotspotType {
+  LINK
+  INFO
+}
+
+// ============================================
+// Models
+// ============================================
+
+model User {
+  id        String    @id @default(cuid())
+  email     String    @unique
+  name      String
+  phone     String?
+  listings  Listing[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Listing {
+  id          String        @id @default(cuid())
+  slug        String        @unique
+  type        ListingType
+  title       String
+  description String
+  price       Decimal
+  currency    String        @default("USD")
+  status      ListingStatus @default(DRAFT)
+
+  // Campos de inmueble
+  areaM2    Float?
+  bedrooms  Int?
+  bathrooms Int?
+  parking   Int?
+  sector    String?
+  city      String?
+
+  // Campos de vehículo
+  brand     String?
+  model     String?
+  year      Int?
+  mileageKm Int?
+
+  // Relaciones
+  owner   User   @relation(fields: [ownerId], references: [id])
+  ownerId String
+  photos  Photo[]
+  scenes  Scene[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([type, status, city, sector])
+  @@index([price])
+  @@index([slug])
+}
+
+model Photo {
+  id        String  @id @default(cuid())
+  url       String
+  thumbUrl  String
+  order     Int
+  listing   Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  listingId String
+}
+
+model Scene {
+  id          String    @id @default(cuid())
+  name        String
+  panoramaUrl String
+  previewUrl  String
+  order       Int
+  initialYaw  Float     @default(0)
+  listing     Listing   @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  listingId   String
+  hotspots    Hotspot[]
+}
+
+model Hotspot {
+  id            String      @id @default(cuid())
+  type          HotspotType
+  yaw           Float
+  pitch         Float
+  title         String?
+  text          String?
+  targetSceneId String?
+  scene         Scene       @relation(fields: [sceneId], references: [id], onDelete: Cascade)
+  sceneId       String
+}
