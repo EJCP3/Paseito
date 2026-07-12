@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted, nextTick } from 'vue'
+import { useRoute } from '#app'
 import BentoGalleryHero from '~/components/hero/BentoGalleryHero.vue'
 import ProductSession from '~/components/ProductSession.vue'
 
@@ -8,15 +9,20 @@ useHead({
 })
 
 const productSessionRef = ref<InstanceType<typeof ProductSession> | null>(null)
+const route = useRoute()
+
+// If returning directly to the product session, skip the hero to avoid GSAP layout thrashing
+const skipHero = ref(route.hash === '#product-session')
+
+onMounted(() => {
+  if (skipHero.value) {
+    window.scrollTo(0, 0)
+  }
+})
 
 const handleHeroSelect = (imageUrl: string) => {
   if (productSessionRef.value) {
     productSessionRef.value.openProductByImage(imageUrl)
-    // Smooth scroll to the product section
-    const productEl = document.getElementById('product-session')
-    if (productEl) {
-      productEl.scrollIntoView({ behavior: 'smooth' })
-    }
   }
 }
 </script>
@@ -24,7 +30,7 @@ const handleHeroSelect = (imageUrl: string) => {
 <template>
   <div>
     <!-- Hero Section (GSAP Flip Gallery) -->
-    <BentoGalleryHero @selectImage="handleHeroSelect" />
+    <BentoGalleryHero v-if="!skipHero" @selectImage="handleHeroSelect" />
 
     <!-- E-Commerce Immersive Storefront -->
     <ProductSession ref="productSessionRef" id="product-session" />
