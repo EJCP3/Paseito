@@ -10,6 +10,7 @@
     "postinstall": "nuxt prepare"
   },
   "dependencies": {
+    "@better-auth/infra": "^0.3.6",
     "@photo-sphere-viewer/core": "^5.14.3",
     "@photo-sphere-viewer/markers-plugin": "^5.14.3",
     "@photo-sphere-viewer/virtual-tour-plugin": "^5.14.3",

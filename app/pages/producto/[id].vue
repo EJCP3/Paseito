@@ -122,70 +122,12 @@ const handleDockScroll = () => {
 // ---------------- THREE JS 360 Logic ----------------
 const SPHERE_R = 500
 
-function makeRoomCanvas(cfg: any) {
-  const W=2048,H=1024;
-  const c = document.createElement('canvas');
-  c.width=W; c.height=H;
-  const x = c.getContext('2d');
-  if(!x) return c;
-  const g = x.createLinearGradient(0,0,0,H);
-  g.addColorStop(0,cfg.ceiling);g.addColorStop(.32,cfg.ceiling);
-  g.addColorStop(.38,cfg.wall);g.addColorStop(.62,cfg.wallLow||cfg.wall);
-  g.addColorStop(.68,cfg.floor);g.addColorStop(1,cfg.floorDark||cfg.floor);
-  x.fillStyle=g;x.fillRect(0,0,W,H);
-  x.fillStyle='rgba(0,0,0,.16)';x.fillRect(0,H*.375,W,4);x.fillRect(0,H*.655,W,5);
-  x.strokeStyle='rgba(0,0,0,.09)';x.lineWidth=3;
-  for(let i=0;i<26;i++){const y=H*.68+(H*.32)*(i/26)**1.6;x.beginPath();x.moveTo(0,y);x.lineTo(W,y);x.stroke();}
-  x.fillStyle='rgba(255,244,214,.9)';x.beginPath();x.ellipse(W/2,H*.06,130,34,0,0,Math.PI*2);x.fill();
-  (cfg.items||[]).forEach((it: any)=>{
-    const cx=(it.lon/360)*W,w=it.w,hgt=it.h,top=H*.5-hgt/2+(it.dy||0);
-    if(it.type==='window'){
-      x.fillStyle='#0e1520';x.fillRect(cx-w/2-10,top-10,w+20,hgt+20);
-      const s=x.createLinearGradient(0,top,0,top+hgt);
-      s.addColorStop(0,'#9fd4ff');s.addColorStop(.7,'#cfe9ff');s.addColorStop(1,'#eef7ff');
-      x.fillStyle=s;x.fillRect(cx-w/2,top,w,hgt);
-      x.fillStyle='rgba(120,170,90,.85)';
-      for(let i=0;i<6;i++){const bw=w/6;x.fillRect(cx-w/2+i*bw+4,top+hgt*(0.55+Math.sin(i*2.7)*.1),bw-8,hgt*.45);}
-      x.strokeStyle='#0e1520';x.lineWidth=8;x.strokeRect(cx-w/2,top,w,hgt);
-      x.beginPath();x.moveTo(cx,top);x.lineTo(cx,top+hgt);
-      x.moveTo(cx-w/2,top+hgt/2);x.lineTo(cx+w/2,top+hgt/2);x.stroke();
-    }
-    if(it.type==='door'){
-      x.fillStyle=it.color||'#6b4a32';x.fillRect(cx-w/2,top,w,hgt);
-      x.strokeStyle='rgba(0,0,0,.35)';x.lineWidth=6;x.strokeRect(cx-w/2,top,w,hgt);
-      x.fillStyle='#d9c07a';x.beginPath();x.arc(cx+w/2-22,top+hgt*.52,7,0,Math.PI*2);x.fill();
-    }
-    if(it.type==='block'){
-      x.fillStyle=it.color;x.fillRect(cx-w/2,top,w,hgt);
-      x.fillStyle='rgba(255,255,255,.12)';x.fillRect(cx-w/2,top,w,hgt*.18);
-      x.strokeStyle='rgba(0,0,0,.25)';x.lineWidth=4;x.strokeRect(cx-w/2,top,w,hgt);
-    }
-    if(it.type==='art'){
-      x.fillStyle='#20242a';x.fillRect(cx-w/2-8,top-8,w+16,hgt+16);
-      const a=x.createLinearGradient(cx-w/2,0,cx+w/2,0);
-      a.addColorStop(0,'#ccff00');a.addColorStop(1,'#2f6b3f');
-      x.fillStyle=a;x.fillRect(cx-w/2,top,w,hgt);
-    }
-  });
-  return c;
-}
-
-const SCENES: Record<string, any> = {
-  sala:{label:'Sala',ceiling:'#e9e4da',wall:'#d8cfc0',wallLow:'#cfc4b2',floor:'#9c7350',floorDark:'#7c5a3e',
-    items:[{type:'window',lon:180,w:420,h:300},{type:'block',lon:95,w:460,h:150,dy:80,color:'#5f7d8c'},
-           {type:'art',lon:300,w:200,h:150},{type:'door',lon:20,w:150,h:330}]},
-  cocina:{label:'Cocina',ceiling:'#eef0f2',wall:'#e3e7ea',wallLow:'#d7dde1',floor:'#b9bfc6',floorDark:'#9aa1a9',
-    items:[{type:'block',lon:200,w:700,h:170,dy:70,color:'#3d4b55'},{type:'block',lon:200,w:700,h:120,dy:-140,color:'#eef1f3'},
-           {type:'window',lon:305,w:260,h:230},{type:'block',lon:130,w:170,h:330,color:'#a7adb4'},{type:'door',lon:20,w:150,h:330,color:'#4a4f55'}]},
-  habitacion:{label:'Habitación principal',ceiling:'#efe9e1',wall:'#e5d9c8',wallLow:'#dccdb8',floor:'#8d6a4c',floorDark:'#6f5238',
-    items:[{type:'block',lon:160,w:560,h:200,dy:70,color:'#8c7f9c'},{type:'window',lon:250,w:330,h:280},
-           {type:'block',lon:60,w:360,h:300,color:'#7a5c40'},{type:'door',lon:355,w:150,h:330}]},
-  bano:{label:'Baño',ceiling:'#f2f4f5',wall:'#dfe8ea',wallLow:'#cfdcdf',floor:'#aebcc0',floorDark:'#93a3a8',
-    items:[{type:'block',lon:180,w:300,h:140,dy:90,color:'#ffffff'},{type:'window',lon:90,w:180,h:150,dy:-60},
-           {type:'block',lon:270,w:220,h:280,color:'#c7d3d6'},{type:'door',lon:0,w:150,h:330,color:'#8a939b'}]},
-  balcon:{label:'Balcón / Vista',ceiling:'#bfe0f5',wall:'#a8d4ef',wallLow:'#cde9f8',floor:'#b7aa96',floorDark:'#998c78',
-    items:[{type:'block',lon:180,w:900,h:120,dy:120,color:'#6f7c85'},
-           {type:'block',lon:80,w:160,h:130,dy:60,color:'#4d5d52'},{type:'door',lon:340,w:170,h:330,color:'#37424a'}]},
+const SCENES: Record<string, { label: string, img: string }> = {
+  sala:{label:'Sala',img:'/images/prueba1.webp'},
+  cocina:{label:'Cocina',img:'/images/prueba2.webp'},
+  habitacion:{label:'Habitación principal',img:'/images/prueba3.webp'},
+  bano:{label:'Baño',img:'/images/prueba4.webp'},
+  balcon:{label:'Balcón / Vista',img:'/images/prueba5.webp'},
 };
 
 const viewerContainer = ref<HTMLElement | null>(null)
@@ -243,12 +185,14 @@ const up = () => { isDown=false; isDragging.value=false; }
 const setScene = (key: string) => {
   if(key === activeSceneKey.value && mat?.map) return;
   activeSceneKey.value = key;
-  activeSceneLabel.value = SCENES[key].label;
-  const canvas = makeRoomCanvas(SCENES[key]);
-  if(mat?.map) mat.map.dispose();
-  mat.map = new THREE.CanvasTexture(canvas);
-  mat.map.colorSpace = THREE.SRGBColorSpace;
-  mat.needsUpdate = true;
+  const cfg = SCENES[key];
+  activeSceneLabel.value = cfg.label;
+  new THREE.TextureLoader().load(cfg.img, (tex) => {
+    tex.colorSpace = THREE.SRGBColorSpace;
+    if(mat.map) mat.map.dispose();
+    mat.map = tex;
+    mat.needsUpdate = true;
+  });
   lon=175; lat=0;
 }
 
@@ -260,12 +204,7 @@ onMounted(async () => {
 
   // Render thumbnails
   Object.entries(SCENES).forEach(([key,cfg])=>{
-    const full = makeRoomCanvas(cfg);
-    const th = document.createElement('canvas'); th.width=120; th.height=120;
-    th.getContext('2d')?.drawImage(full, 700, 260, 620, 620, 0, 0, 120, 120);
-    thumbnails.value.push({
-      key, label: cfg.label.split(' ')[0], img: th.toDataURL()
-    })
+    thumbnails.value.push({ key, label: cfg.label.split(' ')[0], img: cfg.img })
   })
 
   // Ensure DOM is ready for viewer

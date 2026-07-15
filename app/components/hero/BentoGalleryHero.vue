@@ -5,6 +5,8 @@ const { $gsap: gsap, $ScrollTrigger: ScrollTrigger, $Flip: Flip } = useNuxtApp()
 
 const emit = defineEmits(['selectImage'])
 
+const galleryImages = [1, 2, 3, 4, 5, 1, 2, 3].map(n => `/images/portada${n}.webp`)
+
 const galleryWrapRef = ref<HTMLElement>()
 let flipCtx: any
 
@@ -58,29 +60,8 @@ onBeforeUnmount(() => {
 <template>
   <div class="gallery-wrap" ref="galleryWrapRef">
     <div class="gallery gallery--bento gallery--switch" id="gallery-8">
-      <div class="gallery__item cursor-pointer" @click="$emit('selectImage', 'https://assets.codepen.io/16327/portrait-pattern-1.jpg')">
-        <img src="https://assets.codepen.io/16327/portrait-pattern-1.jpg" alt="" />
-      </div>
-      <div class="gallery__item cursor-pointer" @click="$emit('selectImage', 'https://assets.codepen.io/16327/portrait-image-12.jpg')">
-        <img src="https://assets.codepen.io/16327/portrait-image-12.jpg" alt="" />
-      </div>
-      <div class="gallery__item cursor-pointer" @click="$emit('selectImage', 'https://assets.codepen.io/16327/portrait-image-8.jpg')">
-        <img src="https://assets.codepen.io/16327/portrait-image-8.jpg" alt="" />
-      </div>
-      <div class="gallery__item cursor-pointer" @click="$emit('selectImage', 'https://assets.codepen.io/16327/portrait-pattern-2.jpg')">
-        <img src="https://assets.codepen.io/16327/portrait-pattern-2.jpg" alt="" />
-      </div>
-      <div class="gallery__item cursor-pointer" @click="$emit('selectImage', 'https://assets.codepen.io/16327/portrait-image-4.jpg')">
-        <img src="https://assets.codepen.io/16327/portrait-image-4.jpg" alt="" />
-      </div>
-      <div class="gallery__item cursor-pointer" @click="$emit('selectImage', 'https://assets.codepen.io/16327/portrait-image-3.jpg')">
-        <img src="https://assets.codepen.io/16327/portrait-image-3.jpg" alt="" />
-      </div>
-      <div class="gallery__item cursor-pointer" @click="$emit('selectImage', 'https://assets.codepen.io/16327/portrait-pattern-3.jpg')">
-        <img src="https://assets.codepen.io/16327/portrait-pattern-3.jpg" alt="" />
-      </div>
-      <div class="gallery__item cursor-pointer" @click="$emit('selectImage', 'https://assets.codepen.io/16327/portrait-image-1.jpg')">
-        <img src="https://assets.codepen.io/16327/portrait-image-1.jpg" alt="" />
+      <div v-for="(img, i) in galleryImages" :key="i" class="gallery__item cursor-pointer" @click="$emit('selectImage', img)">
+        <img :src="img" alt="" />
       </div>
     </div>
   </div>
