@@ -1,8 +1,11 @@
 // Schemas de validación Zod — Listados
 import { z } from 'zod'
 
+import { ContactsArraySchema } from './contact.schema'
+import locations from '../data/rd-locations.json'
+
 // Enums como Zod
-export const ListingTypeSchema = z.enum(['APARTMENT', 'HOUSE', 'VEHICLE'])
+export const ListingTypeSchema = z.enum(['APARTMENT', 'HOUSE', 'VILLA', 'VEHICLE'])
 export const ListingStatusSchema = z.enum(['DRAFT', 'ACTIVE', 'SOLD', 'PAUSED'])
 
 // Schema base para crear un listado
@@ -21,19 +24,54 @@ export const CreateListingSchema = z.object({
   sector: z.string().max(100).optional(),
   city: z.string().max(100).optional(),
 
+  // Coordenadas confirmadas en el mini-mapa (pin arrastrable) al publicar.
+  // Se usan para detectar los puntos de interés cercanos.
+  latitude: z.number().min(-90).max(90).optional(),
+  longitude: z.number().min(-180).max(180).optional(),
+
   // Campos de vehículo (opcionales, requeridos según tipo)
   brand: z.string().max(50).optional(),
   model: z.string().max(50).optional(),
   year: z.number().int().min(1900).max(new Date().getFullYear() + 1).optional(),
   mileageKm: z.number().int().min(0).optional(),
+
+  // Redes/contactos a mostrar en el anuncio (validados por red y normalizados)
+  contacts: ContactsArraySchema.optional(),
 }).superRefine((data, ctx) => {
+  // Lat/lng siempre van de la mano (ambos o ninguno)
+  if ((data.latitude === undefined) !== (data.longitude === undefined)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Faltan coordenadas: confirma la ubicación en el mapa',
+      path: ['latitude'],
+    })
+  }
   // Validaciones condicionales según el tipo
-  if (data.type === 'APARTMENT' || data.type === 'HOUSE') {
+  if (data.type === 'APARTMENT' || data.type === 'HOUSE' || data.type === 'VILLA') {
     if (!data.city) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: 'La ciudad es requerida para inmuebles',
         path: ['city'],
+      })
+    }
+  }
+
+  // Ciudad/sector deben existir en el dataset de RD (misma lista que usa el combobox
+  // del front) — nadie puede mandar un valor inventado llamando el endpoint directo.
+  if (data.city) {
+    const entry = locations.find((l) => l.city === data.city)
+    if (!entry) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Selecciona una ciudad válida de la lista.',
+        path: ['city'],
+      })
+    } else if (data.sector && !entry.sectors.includes(data.sector)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Ese sector no pertenece a la ciudad seleccionada.',
+        path: ['sector'],
       })
     }
   }
@@ -77,6 +115,8 @@ export const UpdateListingSchema = z.object({
   parking: z.number().int().min(0).optional(),
   sector: z.string().max(100).optional(),
   city: z.string().max(100).optional(),
+  latitude: z.number().min(-90).max(90).optional(),
+  longitude: z.number().min(-180).max(180).optional(),
   brand: z.string().max(50).optional(),
   model: z.string().max(50).optional(),
   year: z.number().int().min(1900).optional(),
@@ -93,6 +133,7 @@ export const ListingFiltersSchema = z.object({
   maxPrice: z.number().min(0).optional(),
   minBedrooms: z.number().int().min(0).optional(),
   search: z.string().max(200).optional(),
+  excludeId: z.string().optional(), // Para "otros anuncios" (nunca el actual)
   page: z.number().int().min(1).default(1),
   limit: z.number().int().min(1).max(50).default(12),
 })

@@ -29,6 +29,13 @@ export const useTourEditorStore = defineStore('tourEditor', () => {
     scenes.value.push(scene)
   }
 
+  function renameScene(id: string, name: string) {
+    const scene = scenes.value.find((s) => s.id === id)
+    if (scene) {
+      scene.name = name
+    }
+  }
+
   function removeScene(id: string) {
     scenes.value = scenes.value.filter((s) => s.id !== id)
     if (activeSceneId.value === id && scenes.value.length) {
@@ -88,6 +95,7 @@ export const useTourEditorStore = defineStore('tourEditor', () => {
     setScenes,
     setActiveScene,
     addScene,
+    renameScene,
     removeScene,
     startHotspotPlacement,
     addHotspot,

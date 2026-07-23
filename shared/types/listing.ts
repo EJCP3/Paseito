@@ -9,14 +9,24 @@ export interface User {
   id: string
   email: string
   name: string
+  image?: string | null
   phone?: string | null
+  verificationTier: number
   createdAt: string
+}
+
+export type ContactType = 'whatsapp' | 'instagram' | 'facebook' | 'tiktok' | 'website'
+
+export interface ContactLink {
+  type: ContactType
+  value: string
 }
 
 export interface Photo {
   id: string
   url: string
   thumbUrl: string
+  name: string | null
   order: number
 }
 
@@ -41,6 +51,16 @@ export interface Scene {
   listingId: string
 }
 
+export interface NearbyPlace {
+  id: string
+  name: string
+  category: string
+  distanceM: number
+  lat: number
+  lng: number
+  listingId: string
+}
+
 export interface Listing {
   id: string
   slug: string
@@ -58,12 +78,17 @@ export interface Listing {
   parking?: number | null
   sector?: string | null
   city?: string | null
+  latitude?: number | null
+  longitude?: number | null
 
   // Vehículo
   brand?: string | null
   model?: string | null
   year?: number | null
   mileageKm?: number | null
+
+  // Redes/contactos que el anuncio muestra
+  contacts?: ContactLink[] | null
 
   ownerId: string
   createdAt: string
@@ -89,7 +114,15 @@ export interface ListingWithScenes extends Listing {
 export interface ListingFull extends Listing {
   photos: Photo[]
   scenes: SceneWithHotspots[]
-  owner: Pick<User, 'id' | 'name' | 'phone'>
+  nearbyPlaces?: NearbyPlace[]
+  owner: Pick<User, 'id' | 'name' | 'phone' | 'image' | 'verificationTier'> & { activeListingsCount: number }
+}
+
+// Respuesta de GET /api/users/[id]/profile — para SellerProfileModal
+export interface SellerProfile {
+  user: Pick<User, 'id' | 'name' | 'image' | 'verificationTier' | 'createdAt'>
+  activeListings: (ListingWithPhotos & { scenes: Pick<Scene, 'previewUrl'>[] })[]
+  totalSaved: number
 }
 
 // ============================================

@@ -14,3 +14,9 @@ El hero usa GSAP Flip + ScrollTrigger. Para ajustar:
 ## Licencia
 
 Privado — Todos los derechos reservados.
+
+## Créditos
+
+- Datos de ubicaciones de República Dominicana basados en
+  [codigos-postales-rd](https://github.com/gareladev/codigos-postales-rd) (INPOSDOM), MIT License.
+  Se regeneran con `node --experimental-strip-types scripts/generate-locations.ts`.

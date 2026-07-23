@@ -4,6 +4,15 @@ export default defineNuxtConfig({
 
   devtools: { enabled: true },
 
+  // View Transitions API nativa del navegador (fallback silencioso donde no
+  // exista). El sweep de glimm en la salida del detalle ya oculta la página
+  // detrás de un canvas opaco antes de swapear la ruta, así que no compite
+  // visualmente con este cross-fade — solo se ve en las entradas normales
+  // (detalle de anuncio, perfil, etc.) que hoy no tienen ninguna transición.
+  experimental: {
+    viewTransition: true,
+  },
+
   // Modules
   modules: [
     '@pinia/nuxt',
@@ -19,7 +28,7 @@ export default defineNuxtConfig({
   ],
 
   // Global CSS
-  css: ['~/assets/css/main.css'],
+  css: ['~/assets/css/main.css', 'leaflet/dist/leaflet.css'],
 
   // PostCSS — Tailwind CSS 4
   postcss: {
@@ -30,6 +39,8 @@ export default defineNuxtConfig({
 
   // App metadata
   app: {
+    // Nombre/modo de la transición — el CSS real vive en app.vue (.page-enter-active).
+    pageTransition: { name: 'page', mode: 'out-in' },
     head: {
       title: 'Paseito — Marketplace de Inmuebles y Vehículos con Tours 360°',
       htmlAttrs: { lang: 'es' },
@@ -46,17 +57,17 @@ export default defineNuxtConfig({
         { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' },
       ],
     },
-    pageTransition: { name: 'page', mode: 'out-in' },
   },
 
   // Runtime config for env variables
   runtimeConfig: {
     databaseUrl: process.env.DATABASE_URL || '',
     betterAuthSecret: process.env.BETTER_AUTH_SECRET || '',
-    r2AccountId: process.env.R2_ACCOUNT_ID || '',
-    r2AccessKeyId: process.env.R2_ACCESS_KEY_ID || '',
-    r2SecretAccessKey: process.env.R2_SECRET_ACCESS_KEY || '',
-    r2BucketName: process.env.R2_BUCKET_NAME || '',
+    googleClientId: process.env.GOOGLE_CLIENT_ID || '',
+    googleClientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
+    cloudName: process.env.CLOUD_NAME || '',
+    cloudApiKey: process.env.CLOUD_API_KEY || '',
+    cloudApiSecret: process.env.CLOUD_API_SECRET || '',
     public: {
       appName: 'Paseito',
       appUrl: process.env.APP_URL || 'http://localhost:3000',
@@ -67,5 +78,21 @@ export default defineNuxtConfig({
   image: {
     quality: 80,
     format: ['webp', 'avif'],
+  },
+
+  // Pre-bundle deps only reached via client-only imports, so Vite doesn't
+  // discover them at runtime and force a full page reload mid-session
+  vite: {
+    optimizeDeps: {
+      include: [
+        'better-auth/vue',
+        '@better-auth/infra/client',
+        'zod',
+        'gsap',
+        'gsap/ScrollTrigger',
+        'gsap/Flip',
+        'leaflet',
+      ],
+    },
   },
 })

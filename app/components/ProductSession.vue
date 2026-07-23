@@ -1,30 +1,126 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
-import { useRouter } from '#app'
-import { products } from '~/data/products'
+import { useRouter, useRoute } from '#app'
+import { ListingType, ListingTypeLabels } from '~~/shared/types/enums'
+import locations from '~~/shared/data/rd-locations.json'
 
 const { $gsap: gsap, $ScrollTrigger: ScrollTrigger } = useNuxtApp()
 const router = useRouter()
+const route = useRoute()
 
-const selectProduct = (prod: any) => {
-  router.push(`/producto/${prod.id}`)
+// Si se vuelve de un detalle de anuncio (glimm ya cubrió la transición), las
+// cards deben estar visibles de inmediato: el fade-in por scroll se ve como
+// un segundo parpadeo justo cuando el sweep termina de revelar la página.
+const skipIntroReveal = route.hash === '#product-session'
+
+// Listados reales desde la base de datos (reemplaza el grid de ejemplo).
+// key + getCachedData: al volver del detalle de un anuncio, ProductSession
+// se remonta desde cero y sin esto refetchea de nuevo — grid en blanco ~1s
+// hasta que responde. Con esto reusa lo que ya trajo la primera vez.
+const { data: listingsResponse, pending: listingsPending } = useFetch('/api/listings', {
+  query: { limit: 48 },
+  key: 'home-listings',
+  getCachedData: (key, nuxtApp) => nuxtApp.payload.data[key] ?? nuxtApp.static.data[key],
+})
+const listings = computed(() => (listingsResponse.value as any)?.data ?? [])
+
+function coverImage(listing: any) {
+  if (listing.photos?.length) return listing.photos[0].thumbUrl || listing.photos[0].url
+  if (listing.scenes?.length) return listing.scenes[0].previewUrl
+  return '/images/portada1.webp'
 }
 
-const openProductByImage = (imageUrl: string) => {
-  const prod = products.find(p => p.image === imageUrl)
-  if (prod) {
-    selectProduct(prod)
+function formattedPrice(listing: any) {
+  return new Intl.NumberFormat('es-DO', {
+    style: 'currency',
+    currency: listing.currency || 'USD',
+    maximumFractionDigits: 0,
+  }).format(Number(listing.price))
+}
+
+const { count: favCount } = useFavorites()
+const showFavoritesModal = ref(false)
+function openFavorites() {
+  if (!isAuthenticated.value) return openLogin()
+  showFavoritesModal.value = true
+}
+
+const { user, isAuthenticated, openLogin, goOrLogin, signOut } = useAuth()
+
+const showAccountMenu = ref(false)
+const accountMenuRef = ref<HTMLElement | null>(null)
+
+const initials = computed(() => {
+  const name = user.value?.name?.trim()
+  if (!name) return '?'
+  const parts = name.split(/\s+/)
+  return parts.length > 1
+    ? (parts[0][0] + parts[1][0]).toUpperCase()
+    : name.slice(0, 2).toUpperCase()
+})
+
+function onDocumentClick(e: MouseEvent) {
+  if (accountMenuRef.value && !accountMenuRef.value.contains(e.target as Node)) {
+    showAccountMenu.value = false
+  }
+}
+
+async function handleSignOut() {
+  showAccountMenu.value = false
+  await signOut()
+}
+
+const selectProduct = (listing: any) => {
+  router.push(`/anuncio/${listing.slug}`)
+}
+
+// Las imágenes del hero son piezas de marketing estáticas, no fotos de listados reales;
+// al hacer click llevamos al primer listado disponible.
+const openProductByImage = (_imageUrl: string) => {
+  if (listings.value.length) {
+    selectProduct(listings.value[0])
   } else {
-    selectProduct(products[0])
+    router.push('/buscar')
   }
 }
 
 // --- FILTER ISLAND LOGIC ---
-const filterCategories = ['All', 'Venta', 'Alquiler', 'Vehículos']
-const activeCategory = ref('All')
+// Vehículo no está disponible todavía (ver publicar/index.vue), se excluye del filtro.
+const filterCategories = [
+  { key: 'ALL', label: 'Todos' },
+  ...Object.values(ListingType)
+    .filter(t => t !== ListingType.VEHICLE)
+    .map(t => ({ key: t, label: ListingTypeLabels[t] })),
+]
+const activeCategory = ref('ALL')
+const activeCategoryLabel = computed(() => filterCategories.find(c => c.key === activeCategory.value)?.label ?? 'Todos')
+
+// Subfiltro (ciudad/sector/precio): solo tiene sentido una vez elegido un tipo.
+const filterStep = ref<'category' | 'subfilter'>('category')
+const filterCity = ref<string>('')
+const filterSector = ref<string>('')
+const filterMinPrice = ref<number | null>(null)
+const filterMaxPrice = ref<number | null>(null)
+
+const cityOptions = locations.map((l) => l.city)
+const sectorOptions = computed(() => locations.find((l) => l.city === filterCity.value)?.sectors ?? [])
+watch(filterCity, () => { filterSector.value = '' })
+
+function resetSubFilters() {
+  filterCity.value = ''
+  filterSector.value = ''
+  filterMinPrice.value = null
+  filterMaxPrice.value = null
+}
+
 const filteredProducts = computed(() => {
-  if (activeCategory.value === 'All') return products
-  return products.filter(p => p.category === activeCategory.value)
+  let list = listings.value
+  if (activeCategory.value !== 'ALL') list = list.filter((l: any) => l.type === activeCategory.value)
+  if (filterCity.value) list = list.filter((l: any) => l.city === filterCity.value)
+  if (filterSector.value) list = list.filter((l: any) => l.sector === filterSector.value)
+  if (filterMinPrice.value != null) list = list.filter((l: any) => Number(l.price) >= filterMinPrice.value!)
+  if (filterMaxPrice.value != null) list = list.filter((l: any) => Number(l.price) <= filterMaxPrice.value!)
+  return list
 })
 
 const isFilterOpen = ref(false)
@@ -53,15 +149,19 @@ const sectionRef = ref<HTMLElement | null>(null)
 const isSectionVisible = ref(false)
 let sectionObserver: IntersectionObserver | null = null
 
-let batchTriggers: any[] = []
 
-const initBatchAnimations = () => {
+let batchTriggers: any[] = []
+// Contexto GSAP: recoge timeline del filtro + batch triggers para poder
+// revertirlos en unmount (evita ScrollTriggers huérfanos que rompen el HMR).
+let ctx: any = null
+
+const initBatchAnimations = (animate = true) => {
   if (batchTriggers && batchTriggers.length) {
     batchTriggers.forEach(t => t.kill())
   }
-  
+
   // Start state for cards if batch is being re-initialized
-  gsap.set('.product-card', { autoAlpha: 0, y: 30 })
+  gsap.set('.product-card', animate ? { autoAlpha: 0, y: 30 } : { autoAlpha: 1, y: 0 })
 
   batchTriggers = ScrollTrigger.batch('.product-card', {
     start: "top 80%",
@@ -73,7 +173,7 @@ watch(filteredProducts, async () => {
   await nextTick()
   ScrollTrigger.refresh()
   if (batchInitialized.value) {
-    initBatchAnimations()
+    ctx ? ctx.add(() => initBatchAnimations()) : initBatchAnimations()
   }
 })
 
@@ -81,16 +181,20 @@ const batchInitialized = ref(false)
 watch(isSectionVisible, (visible) => {
   if (visible && !batchInitialized.value) {
     batchInitialized.value = true
-    initBatchAnimations()
+    ctx ? ctx.add(() => initBatchAnimations(!skipIntroReveal)) : initBatchAnimations(!skipIntroReveal)
   }
 })
 
 onMounted(() => {
-  initFilterAnimation()
-  
-  // Immediately hide all cards on mount so they wait for the scroll trigger
-  gsap.set('.product-card', { autoAlpha: 0, y: 30 })
-  
+  // Sin scope: los selectores (.island, .menu-overlay teleportado, etc.) siguen
+  // siendo globales, pero el contexto igual recoge todo para revert() en unmount.
+  ctx = gsap.context(() => {
+    initFilterAnimation()
+    // Immediately hide all cards on mount so they wait for the scroll trigger
+    // (salvo al volver de un detalle: ya deben verse, sin fade-in).
+    gsap.set('.product-card', skipIntroReveal ? { autoAlpha: 1, y: 0 } : { autoAlpha: 0, y: 30 })
+  })
+
   // Observe if ProductSession is visible on screen
   sectionObserver = new IntersectionObserver((entries) => {
     isSectionVisible.value = entries[0].isIntersecting
@@ -99,12 +203,18 @@ onMounted(() => {
   if (sectionRef.value) {
     sectionObserver.observe(sectionRef.value)
   }
+
+  document.addEventListener('mousedown', onDocumentClick)
 })
 
 onBeforeUnmount(() => {
   if (sectionObserver) {
     sectionObserver.disconnect()
   }
+  // Mata timeline del filtro + batch triggers para no dejar ScrollTriggers
+  // huérfanos que rompan el HMR (y con él el pin del hero).
+  if (ctx) ctx.revert()
+  document.removeEventListener('mousedown', onDocumentClick)
 })
 
 const toggleFilter = () => {
@@ -123,7 +233,18 @@ const closeFilter = () => {
 
 const selectCategory = (cat: string) => {
   activeCategory.value = cat
-  closeFilter()
+  if (cat === 'ALL') {
+    resetSubFilters()
+    filterStep.value = 'category'
+    closeFilter()
+  } else {
+    // No cierra: pasa al subfiltro (ciudad/sector/precio) para ese tipo.
+    filterStep.value = 'subfilter'
+  }
+}
+
+const backToCategories = () => {
+  filterStep.value = 'category'
 }
 
 defineExpose({
@@ -133,14 +254,126 @@ defineExpose({
 </script>
 
 <template>
-  <section class="relative w-full bg-[var(--color-surface)] min-h-screen flex flex-col lg:flex-row" ref="sectionRef">
+  <section class="relative w-full bg-[var(--color-surface)] min-h-screen" ref="sectionRef">
 
+    <!-- DESKTOP STICKY HEADER — filtro (centro) + sesión (derecha). Sticky nativo: sin JS, sin rebote. -->
+    <div v-show="isSectionVisible" class="hidden lg:block sticky top-0 h-0 z-[1200] pointer-events-none">
+      <!-- Fondo sobre el área de contenido para que las imágenes pasen limpio por debajo -->
+      <div class="absolute top-0 right-0 h-24 pointer-events-none" style="left: 32%; background: var(--color-surface);"></div>
+
+      <!-- Filtro (centrado en el viewport) -->
+      <div class="absolute top-6 left-1/2 -translate-x-1/2 flex flex-col items-center">
+        <!-- The island -->
+        <div class="island pointer-events-auto relative flex items-center justify-between p-1 bg-white border border-gray-200 rounded-full whitespace-nowrap overflow-hidden text-black transition-colors shadow-2xl" ref="islandRef" style="width: 50px; height: 50px;">
+          <div class="island-logo-cont relative w-0 h-5 pointer-events-none flex items-center">
+            <span class="island-logo absolute opacity-0 font-medium ml-4 text-[14px]" style="font-family: var(--font-body);">Filter: {{ activeCategoryLabel }}</span>
+          </div>
+          <button @click="toggleFilter" class="menu-btn w-[42px] h-[42px] bg-transparent border-none cursor-pointer flex items-center justify-end flex-shrink-0" id="menuToggle">
+            <div class="button-cont w-[42px] h-[42px] flex items-center justify-center rounded-full transition-colors hover:bg-gray-100">
+              <Icon id="menuIcon" name="menuMorph" width="16" height="16" viewBox="0 0 16 16" class="overflow-visible block" />
+            </div>
+          </button>
+        </div>
+
+        <!-- The Menu Panel -->
+        <div class="menu-panel absolute top-16 invisible pointer-events-auto bg-white border border-gray-100 shadow-2xl rounded-[24px] p-2 w-[90vw] max-w-[400px]">
+          <!-- Paso 1: tipo de anuncio -->
+          <nav v-if="filterStep === 'category'" class="flex flex-col">
+            <a v-for="(cat, i) in filterCategories" :key="cat.key" @click.prevent="selectCategory(cat.key)" class="menu-link flex items-center justify-between p-4 rounded-xl no-underline text-gray-500 font-medium text-[16px] hover:text-black transition-colors cursor-pointer" :class="activeCategory === cat.key ? 'text-black bg-gray-100' : ''">
+              <span style="font-family: var(--font-body);">{{ cat.label }}</span>
+              <span class="link-num text-[12px] text-gray-400 font-mono">0{{ i+1 }}</span>
+            </a>
+          </nav>
+
+          <!-- Paso 2: subfiltro (ciudad / sector / precio) para el tipo elegido -->
+          <div v-else class="p-2">
+            <button type="button" class="flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-black transition-colors mb-3 px-2" @click="backToCategories">
+              <Icon name="chevronDown" class="w-3.5 h-3.5 rotate-90" />
+              {{ activeCategoryLabel }}
+            </button>
+
+            <div class="flex flex-col gap-3 px-2 pb-2">
+              <div>
+                <label class="text-[11px] font-bold uppercase tracking-wider text-gray-400 block mb-1">Ciudad</label>
+                <LocationCombobox v-model="filterCity" :options="cityOptions" placeholder="Cualquier ciudad" />
+              </div>
+              <div>
+                <label class="text-[11px] font-bold uppercase tracking-wider text-gray-400 block mb-1">Sector</label>
+                <LocationCombobox
+                  v-model="filterSector"
+                  :options="sectorOptions"
+                  :disabled="!filterCity"
+                  :placeholder="filterCity ? 'Cualquier sector' : 'Elige una ciudad primero'"
+                />
+              </div>
+              <div>
+                <label class="text-[11px] font-bold uppercase tracking-wider text-gray-400 block mb-1">Precio</label>
+                <div class="flex items-center gap-2">
+                  <input v-model.number="filterMinPrice" type="number" placeholder="Mín." class="w-full text-sm px-3 py-2 rounded-full border border-gray-200 focus:outline-none focus:border-black" />
+                  <span class="text-gray-300">—</span>
+                  <input v-model.number="filterMaxPrice" type="number" placeholder="Máx." class="w-full text-sm px-3 py-2 rounded-full border border-gray-200 focus:outline-none focus:border-black" />
+                </div>
+              </div>
+
+              <button type="button" class="btn btn-neon w-full mt-1" @click="closeFilter">
+                Ver {{ filteredProducts.length }} resultado{{ filteredProducts.length === 1 ? '' : 's' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sesión / cuenta (derecha) -->
+      <div class="absolute top-6 right-6 flex items-center gap-4 pointer-events-auto">
+        <NuxtLink v-if="!isAuthenticated" to="#" class="text-[15px] font-medium text-gray-600 hover:text-black transition-colors" @click.prevent="openLogin()">
+          Iniciar sesión
+        </NuxtLink>
+
+        <div v-else ref="accountMenuRef" class="relative">
+          <button
+            class="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold"
+            style="background: var(--color-neon); color: #0D0D0D;"
+            @click="showAccountMenu = !showAccountMenu"
+          >
+            {{ initials }}
+          </button>
+
+          <Transition
+            enter-active-class="transition duration-150 ease-out"
+            enter-from-class="opacity-0 scale-95"
+            enter-to-class="opacity-100 scale-100"
+            leave-active-class="transition duration-100 ease-in"
+            leave-from-class="opacity-100 scale-100"
+            leave-to-class="opacity-0 scale-95"
+          >
+            <div v-if="showAccountMenu" class="absolute right-0 mt-2 w-52 bg-white rounded-2xl shadow-xl border border-black/5 py-2">
+              <NuxtLink to="/cuenta" class="block px-4 py-2 text-sm font-medium hover:bg-gray-50" @click="showAccountMenu = false">
+                Mis publicaciones
+              </NuxtLink>
+              <NuxtLink to="/cuenta" class="block px-4 py-2 text-sm font-medium hover:bg-gray-50" @click="showAccountMenu = false">
+                Editar perfil
+              </NuxtLink>
+              <button class="w-full text-left px-4 py-2 text-sm font-medium hover:bg-gray-50" @click="handleSignOut">
+                Cerrar sesión
+              </button>
+            </div>
+          </Transition>
+        </div>
+
+        <button class="btn btn-sm btn-neon text-sm" @click="goOrLogin('/publicar')">
+          + Publicar
+        </button>
+      </div>
+    </div>
+
+    <!-- LAYOUT: sidebar + contenido -->
+    <div class="flex flex-col lg:flex-row">
 
     <!-- LEFT SIDEBAR (Sticky) -->
     <div class="hidden lg:flex sticky top-0 h-screen w-[32%] flex-shrink-0 flex-col justify-between p-6 z-40">
       <!-- Logo (Top Left) -->
       <div class="flex items-center gap-2 cursor-pointer text-black">
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-footsteps"><path stroke="none" d="M0 0h24v24H0z" fill="none" /><path d="M4 16.5a2.5 2.5 0 0 0 5 0a1.5 1.5 0 0 0 -1.5 -1.5h-2a1.5 1.5 0 0 0 -1.5 1.5" /><path d="M15 18.5a2.5 2.5 0 0 0 5 0a1.5 1.5 0 0 0 -1.5 -1.5h-2a1.5 1.5 0 0 0 -1.5 1.5" /><path d="M8.52 12h-4.04c-.348 0 -.678 -.179 -.823 -.496c-1.326 -2.904 -.774 -8.504 2.843 -8.504s4.17 5.6 2.843 8.504c-.145 .317 -.475 .496 -.824 .496" /><path d="M19.52 14h-4.04c-.348 0 -.678 -.179 -.823 -.496c-1.326 -2.904 -.774 -8.504 2.843 -8.504s4.17 5.6 2.843 8.504c-.145 .317 -.475 .496 -.824 .496" /></svg>
+        <Icon name="footsteps" width="24" height="24" />
         <span class="text-[20px] font-medium tracking-tight" style="font-family: var(--font-body);">
           Paseito
         </span>
@@ -151,41 +384,39 @@ defineExpose({
         <!-- Grid View: Product List -->
         <ul class="space-y-1 text-[22px] leading-tight text-gray-500 font-normal tracking-tight" style="font-family: var(--font-body);">
           <li v-for="p in filteredProducts" :key="p.id" class="hover:text-black cursor-pointer transition-colors" @click="selectProduct(p)">
-            {{ p.name }}
+            {{ p.title }}
           </li>
-          <li class="text-black font-medium mt-2 cursor-pointer">
+          <li class="text-black font-medium mt-2 cursor-pointer" @click="selectCategory('ALL')">
             All Products
           </li>
         </ul>
       </div>
 
       <!-- Cart (Bottom Left) -->
-      <div class="text-[18px] font-medium" style="font-family: var(--font-body);">
-        Mi Lista (0)
-      </div>
+      <button
+        type="button"
+        class="text-[18px] font-medium text-left cursor-pointer hover:opacity-70 transition-opacity"
+        style="font-family: var(--font-body);"
+        @click="openFavorites"
+      >
+        Mi Lista ({{ favCount }})
+      </button>
+      <FavoritesModal :show="showFavoritesModal" @close="showFavoritesModal = false" />
     </div>
 
     <!-- MOBILE HEADER -->
     <div class="lg:hidden w-full flex items-center justify-between p-6 z-[1100] bg-[var(--color-surface)] sticky top-0">
       <!-- Left: Logo -->
       <div class="flex items-center gap-2 cursor-pointer text-black">
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-footsteps"><path stroke="none" d="M0 0h24v24H0z" fill="none" /><path d="M4 16.5a2.5 2.5 0 0 0 5 0a1.5 1.5 0 0 0 -1.5 -1.5h-2a1.5 1.5 0 0 0 -1.5 1.5" /><path d="M15 18.5a2.5 2.5 0 0 0 5 0a1.5 1.5 0 0 0 -1.5 -1.5h-2a1.5 1.5 0 0 0 -1.5 1.5" /><path d="M8.52 12h-4.04c-.348 0 -.678 -.179 -.823 -.496c-1.326 -2.904 -.774 -8.504 2.843 -8.504s4.17 5.6 2.843 8.504c-.145 .317 -.475 .496 -.824 .496" /><path d="M19.52 14h-4.04c-.348 0 -.678 -.179 -.823 -.496c-1.326 -2.904 -.774 -8.504 2.843 -8.504s4.17 5.6 2.843 8.504c-.145 .317 -.475 .496 -.824 .496" /></svg>
+        <Icon name="footsteps" width="24" height="24" />
         <span class="text-[20px] font-medium tracking-tight" style="font-family: var(--font-body);">Paseito</span>
       </div>
 
       <!-- Right: Icons -->
       <div class="flex items-center gap-5">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="text-black cursor-pointer">
-          <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
-          <line x1="3" y1="6" x2="21" y2="6"></line>
-          <path d="M16 10a4 4 0 0 1-8 0"></path>
-        </svg>
+        <Icon name="bag" width="24" height="24" stroke-width="1.5" class="text-black cursor-pointer" />
         <div @click="isMobileMenuOpen = true" class="cursor-pointer text-black">
-          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
-            <line x1="3" y1="12" x2="21" y2="12"></line>
-            <line x1="3" y1="6" x2="21" y2="6"></line>
-            <line x1="3" y1="18" x2="21" y2="18"></line>
-          </svg>
+          <Icon name="menu" width="26" height="26" stroke-width="1.5" />
         </div>
       </div>
     </div>
@@ -193,59 +424,38 @@ defineExpose({
     <!-- RIGHT CONTENT AREA -->
     <div class="w-full lg:w-[68%] flex-grow relative min-h-screen flex flex-col">
       
-      <!-- STICKY HEADER / FILTER BUTTON -->
-      <div class="sticky top-0 w-full z-[1200] pointer-events-none">
-        <div class="fixed top-6 left-1/2 -translate-x-1/2 flex flex-col items-center" v-show="isSectionVisible">
-          
-          <!-- The island -->
-          <div class="island pointer-events-auto relative flex items-center justify-between p-1 bg-white border border-gray-200 rounded-full whitespace-nowrap overflow-hidden text-black transition-colors shadow-2xl" ref="islandRef" style="width: 50px; height: 50px;">
-            <div class="island-logo-cont relative w-0 h-5 pointer-events-none flex items-center">
-              <span class="island-logo absolute opacity-0 font-medium ml-4 text-[14px]" style="font-family: var(--font-body);">Filter: {{ activeCategory }}</span>
-            </div>
-            <button @click="toggleFilter" class="menu-btn w-[42px] h-[42px] bg-transparent border-none cursor-pointer flex items-center justify-end flex-shrink-0" id="menuToggle">
-              <div class="button-cont w-[42px] h-[42px] flex items-center justify-center rounded-full transition-colors hover:bg-gray-100">
-                <svg id="menuIcon" width="16" height="16" viewBox="0 0 16 16" fill="none" class="overflow-visible block">
-                  <line class="bar bar-top" x1="2" y1="5" x2="14" y2="5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
-                  <line class="bar bar-mid" x1="2" y1="8" x2="14" y2="8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
-                  <line class="bar bar-bot" x1="2" y1="11" x2="14" y2="11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
-                </svg>
-              </div>
-            </button>
-          </div>
-
-          <!-- The Menu Panel -->
-          <div class="menu-panel absolute top-16 invisible pointer-events-auto bg-white border border-gray-100 shadow-2xl rounded-[24px] p-2 w-[90vw] max-w-[400px]">
-            <nav class="flex flex-col">
-              <a v-for="(cat, i) in filterCategories" :key="cat" @click.prevent="selectCategory(cat)" class="menu-link flex items-center justify-between p-4 rounded-xl no-underline text-gray-500 font-medium text-[16px] hover:text-black transition-colors cursor-pointer" :class="activeCategory === cat ? 'text-black bg-gray-100' : ''">
-                <span style="font-family: var(--font-body);">{{ cat }}</span>
-                <span class="link-num text-[12px] text-gray-400 font-mono">0{{ i+1 }}</span>
-              </a>
-            </nav>
-          </div>
-
-        </div>
-      </div>
-
       <!-- VIEW: GRID -->
       <div class="w-full pt-8 px-4 lg:pt-28 lg:pr-8 lg:px-0 lg:pl-0 pb-12 flex justify-start">
+        <!-- Skeleton: solo en la carga en frío (sin cache todavía) -->
+        <div v-if="listingsPending && !listings.length" class="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-3 lg:gap-4 w-full max-w-[1200px] content-start">
+          <div v-for="i in 6" :key="i" class="animate-pulse bg-[#e3e3df] rounded-2xl lg:rounded-[32px] aspect-square" />
+        </div>
+
+        <!-- Empty state -->
+        <div v-else-if="filteredProducts.length === 0" class="w-full py-24 text-center text-gray-500">
+          <p class="text-lg font-medium" style="font-family: var(--font-body);">Aún no hay publicaciones</p>
+          <p class="text-sm mt-1">Sé el primero en publicar un anuncio.</p>
+        </div>
+
         <!-- CSS Grid for Products -->
-        <div class="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-3 lg:gap-4 w-full max-w-[1200px] content-start">
-          <div 
-            v-for="p in filteredProducts" 
-            :key="p.id" 
+        <div v-else class="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-3 lg:gap-4 w-full max-w-[1200px] content-start">
+          <div
+            v-for="p in filteredProducts"
+            :key="p.id"
             class="product-card invisible opacity-0 bg-[#e3e3df] rounded-2xl lg:rounded-[32px] aspect-square flex items-center justify-center cursor-pointer relative group"
             @click="selectProduct(p)"
           >
-            <img :src="p.image" :alt="p.name" class="w-[80%] h-[80%] object-contain mix-blend-multiply" />
-            
+            <img :src="coverImage(p)" :alt="p.title" class="w-[80%] h-[80%] object-contain mix-blend-multiply" />
+
             <!-- Hover Info -->
             <div class="absolute bottom-8 left-8 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
-              <p class="text-black text-[22px] font-medium leading-tight tracking-tight" style="font-family: var(--font-body);">{{ p.name }}</p>
-              <p class="text-gray-500 text-[17px] m">{{ p.price }}</p>
+              <p class="text-black text-[22px] font-medium leading-tight tracking-tight" style="font-family: var(--font-body);">{{ p.title }}</p>
+              <p class="text-gray-500 text-[17px] m">{{ formattedPrice(p) }}</p>
             </div>
           </div>
         </div>
       </div>
+    </div>
     </div>
     <!-- FILTER BACKDROP (Teleported) -->
     <Teleport to="body">
@@ -260,26 +470,43 @@ defineExpose({
         <div v-show="isMobileMenuOpen" class="fixed inset-0 z-[2000] bg-[#4a4a4a] text-white flex flex-col">
           <div class="flex items-center justify-between p-6">
             <div class="flex items-center gap-2 cursor-pointer text-white">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" class="text-white">
-                <path fill-rule="evenodd" clip-rule="evenodd" d="M11.966 22.028a.747.747 0 01-.137-1.042c1.472-1.895 2.502-3.824 3.013-5.596.505-1.751.528-3.411.025-4.887a1.144 1.144 0 00-.022-.06l-.008-.02a3.841 3.841 0 01-.157-.457c-.171-.58-.337-1.393.003-2.316C15.006 6.784 15.688 6 17 6c1.026 0 1.942.545 2.56 1.39.61.835.94 1.954.94 3.11 0 1.155-.33 2.274-.94 3.11-.62.846-1.536 1.39-2.56 1.39-.444 0-.847-.123-1.196-.32.062.593.037 1.258-.112 1.922-.387 1.722-1.189 3.497-2.616 5.378a.75.75 0 01-1.11.047zM17.5 13.5c.783 0 1.458-.426 1.92-1.057.452-.619.69-1.424.69-2.222 0-1.052-.401-2.008-1.082-2.735C18.358 6.771 17.502 6 17 6c-.347 0-.585.148-.711.365-.121.209-.153.518-.046.883a4.707 4.707 0 00.323.834c.548 1.168.807 2.68.213 4.417a8.558 8.558 0 01-.849 1.838A2.697 2.697 0 0017 13.5zm-5.419 6.275a.75.75 0 01-1.02-.294c-1.637-2.883-2.62-5.736-2.92-8.232-.303-2.528.271-4.801 1.758-6.666C10.748 3.517 11.967 2.5 13.5 2.5c1.196 0 2.274.52 3.064 1.385a.75.75 0 11-1.106 1.015c-.569-.621-1.341-.9-2.072-.9-1.22 0-2.195.836-2.85 1.658C9.37 7.087 8.89 8.926 9.155 11.13c.264 2.203 1.144 4.8 2.632 7.42a.75.75 0 01-.294 1.021z" fill="currentColor"/>
-              </svg>
+              <Icon name="footstepsSolid" width="24" height="24" stroke="none" class="text-white" />
             </div>
             <div @click="isMobileMenuOpen = false" class="cursor-pointer text-white">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
-                <line x1="18" y1="6" x2="6" y2="18"></line>
-                <line x1="6" y1="6" x2="18" y2="18"></line>
-              </svg>
+              <Icon name="close" width="24" height="24" stroke-width="1.5" />
             </div>
           </div>
           <div class="flex-1 overflow-y-auto px-6 pt-4 pb-12 no-scrollbar">
             <ul class="space-y-3 text-[19px] leading-tight font-normal tracking-tight" style="font-family: var(--font-body);">
               <li v-for="p in filteredProducts" :key="p.id" class="cursor-pointer opacity-90 hover:opacity-100 transition-opacity text-white" @click="selectProduct(p); isMobileMenuOpen = false;">
-                {{ p.name }}
+                {{ p.title }}
               </li>
               <li class="font-medium mt-6 cursor-pointer text-white" @click="isMobileMenuOpen = false">
                 All Products
               </li>
             </ul>
+
+            <div class="border-t border-white/15 mt-6 pt-6 flex flex-col gap-3 text-white">
+              <template v-if="!isAuthenticated">
+                <button class="text-left opacity-90 hover:opacity-100 transition-opacity" @click="openLogin(); isMobileMenuOpen = false">
+                  Iniciar sesión
+                </button>
+              </template>
+              <template v-else>
+                <NuxtLink to="/cuenta" class="opacity-90 hover:opacity-100 transition-opacity" @click="isMobileMenuOpen = false">
+                  Mis publicaciones
+                </NuxtLink>
+                <NuxtLink to="/cuenta" class="opacity-90 hover:opacity-100 transition-opacity" @click="isMobileMenuOpen = false">
+                  Editar perfil
+                </NuxtLink>
+                <button class="text-left opacity-90 hover:opacity-100 transition-opacity" @click="handleSignOut(); isMobileMenuOpen = false">
+                  Cerrar sesión
+                </button>
+              </template>
+              <button class="btn btn-sm btn-neon w-full mt-1" @click="goOrLogin('/publicar'); isMobileMenuOpen = false">
+                + Publicar
+              </button>
+            </div>
           </div>
         </div>
       </Transition>

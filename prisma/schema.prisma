@@ -17,6 +17,7 @@ datasource db {
 enum ListingType {
   APARTMENT
   HOUSE
+  VILLA
   VEHICLE
 }
 
@@ -37,17 +38,71 @@ enum HotspotType {
 // ============================================
 
 model User {
-  id        String    @id @default(cuid())
-  email     String    @unique
-  name      String
-  phone     String?
-  listings  Listing[]
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  id            String    @id @default(uuid())
+  email         String    @unique
+  emailVerified Boolean   @default(false)
+  name          String
+  image         String?
+  phone         String?
+  instagramUrl  String?
+  facebookUrl   String?
+  tiktokUrl     String?
+  websiteUrl    String?
+  // 0 = sin verificar, 1 = verificado. Asignado a mano por ahora (Prisma
+  // Studio / endpoint de admin); el campo queda listo para un flujo real luego.
+  verificationTier Int       @default(0)
+  listings      Listing[]
+  sessions      Session[]
+  accounts      Account[]
+  favorites     Favorite[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+// ============================================
+// Better Auth
+// ============================================
+
+model Session {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  expiresAt DateTime
+  ipAddress String?
+  userAgent String?
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Account {
+  id                    String    @id @default(uuid())
+  accountId             String
+  providerId            String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId                String
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+}
+
+model Verification {
+  id         String    @id @default(uuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime? @default(now())
+  updatedAt  DateTime? @updatedAt
 }
 
 model Listing {
-  id          String        @id @default(cuid())
+  id          String        @id @default(uuid())
   slug        String        @unique
   type        ListingType
   title       String
@@ -64,17 +119,28 @@ model Listing {
   sector    String?
   city      String?
 
+  // Coordenadas exactas confirmadas por el dueño en el mini-mapa al publicar
+  // (arrastrando el pin). Se usan para detectar los puntos de interés cercanos.
+  latitude  Float?
+  longitude Float?
+
   // Campos de vehículo
   brand     String?
   model     String?
   year      Int?
   mileageKm Int?
 
+  // Contactos/redes que el dueño eligió mostrar en este anuncio:
+  // [{ type: 'whatsapp'|'instagram'|'facebook'|'tiktok'|'website', value: string }]
+  contacts Json?
+
   // Relaciones
-  owner   User   @relation(fields: [ownerId], references: [id])
-  ownerId String
-  photos  Photo[]
-  scenes  Scene[]
+  owner        User          @relation(fields: [ownerId], references: [id])
+  ownerId      String
+  photos       Photo[]
+  scenes       Scene[]
+  favorites    Favorite[]
+  nearbyPlaces NearbyPlace[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -84,17 +150,32 @@ model Listing {
   @@index([slug])
 }
 
+// Mínimo para poder contar "guardados" en el perfil del vendedor (Fase 2
+// completa — toggle real desde el front — todavía no está conectada; hoy
+// "Mi Lista" vive en localStorage, ver useFavorites.ts).
+model Favorite {
+  id        String   @id @default(uuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  listing   Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  listingId String
+  createdAt DateTime @default(now())
+
+  @@unique([userId, listingId])
+}
+
 model Photo {
-  id        String  @id @default(cuid())
+  id        String  @id @default(uuid())
   url       String
   thumbUrl  String
+  name      String?
   order     Int
   listing   Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
   listingId String
 }
 
 model Scene {
-  id          String    @id @default(cuid())
+  id          String    @id @default(uuid())
   name        String
   panoramaUrl String
   previewUrl  String
@@ -106,7 +187,7 @@ model Scene {
 }
 
 model Hotspot {
-  id            String      @id @default(cuid())
+  id            String      @id @default(uuid())
   type          HotspotType
   yaw           Float
   pitch         Float
@@ -115,4 +196,21 @@ model Hotspot {
   targetSceneId String?
   scene         Scene       @relation(fields: [sceneId], references: [id], onDelete: Cascade)
   sceneId       String
+}
+
+// Puntos de interés cercanos al inmueble (supermercados, colmados, farmacias,
+// escuelas, paradas de transporte público, bancos), detectados vía Overpass
+// API a partir de las coordenadas del listado y cacheados aquí — la detección
+// no se repite en cada visita a la página.
+model NearbyPlace {
+  id        String  @id @default(uuid())
+  name      String
+  category  String
+  distanceM Int
+  lat       Float
+  lng       Float
+  listing   Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  listingId String
+
+  @@index([listingId])
 }

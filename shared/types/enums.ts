@@ -4,6 +4,7 @@
 export enum ListingType {
   APARTMENT = 'APARTMENT',
   HOUSE = 'HOUSE',
+  VILLA = 'VILLA',
   VEHICLE = 'VEHICLE',
 }
 
@@ -23,6 +24,7 @@ export enum HotspotType {
 export const ListingTypeLabels: Record<ListingType, string> = {
   [ListingType.APARTMENT]: 'Apartamento',
   [ListingType.HOUSE]: 'Casa',
+  [ListingType.VILLA]: 'Villa',
   [ListingType.VEHICLE]: 'Vehículo',
 }
 
@@ -38,9 +40,10 @@ export const HotspotTypeLabels: Record<HotspotType, string> = {
   [HotspotType.INFO]: 'Información',
 }
 
-// Iconos para tipos de listado
+// Nombres de íconos (ver app/assets/icons/index.ts) para cada tipo de listado
 export const ListingTypeIcons: Record<ListingType, string> = {
-  [ListingType.APARTMENT]: '🏢',
-  [ListingType.HOUSE]: '🏠',
-  [ListingType.VEHICLE]: '🚗',
+  [ListingType.APARTMENT]: 'building',
+  [ListingType.HOUSE]: 'home',
+  [ListingType.VILLA]: 'villa',
+  [ListingType.VEHICLE]: 'car',
 }

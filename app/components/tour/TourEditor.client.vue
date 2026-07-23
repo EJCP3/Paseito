@@ -10,6 +10,7 @@ import '@photo-sphere-viewer/core/index.css'
 import '@photo-sphere-viewer/markers-plugin/index.css'
 import type { SceneWithHotspots } from '~~/shared/types/listing'
 import type { HotspotInput } from '~~/shared/schemas/tour.schema'
+import { icons } from '~/assets/icons'
 
 const props = defineProps<{
   scenes: SceneWithHotspots[]
@@ -67,13 +68,20 @@ function renderMarkers() {
   const scene = activeScene.value
   if (!scene) return
 
+  // Markers de photo-sphere-viewer: HTML crudo, no un template Vue — no puede
+  // usar <Icon>, pero reutiliza el mismo contenido del registro central.
+  const iconSvg = (name: string) =>
+    `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">${icons[name]}</svg>`
+  const linkIcon = iconSvg('link')
+  const infoIcon = iconSvg('infoCircle')
+
   scene.hotspots.forEach((h) => {
     markersPlugin.addMarker({
       id: h.id,
       position: { yaw: h.yaw, pitch: h.pitch },
       html: `
         <div class="editor-marker ${h.type === 'LINK' ? 'marker-link' : 'marker-info'}">
-          ${h.type === 'LINK' ? '🔗' : 'ℹ️'}
+          ${h.type === 'LINK' ? linkIcon : infoIcon}
           <span class="text-[10px]">${h.title || (h.type === 'LINK' ? 'Enlace' : 'Info')}</span>
         </div>
       `,
@@ -107,8 +115,9 @@ onBeforeUnmount(() => {
 
     <!-- Editor hint -->
     <div class="absolute bottom-4 left-1/2 -translate-x-1/2 z-10">
-      <div class="glass-dark rounded-full px-4 py-2 text-xs text-white font-medium">
-        🎯 Haz clic en la esfera para agregar un hotspot
+      <div class="glass-dark rounded-full px-4 py-2 text-xs text-white font-medium flex items-center gap-1.5">
+        <Icon name="target" class="w-3.5 h-3.5 flex-shrink-0" />
+        Haz clic en la esfera para agregar un hotspot
       </div>
     </div>
   </div>

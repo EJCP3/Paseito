@@ -110,6 +110,91 @@ h1, h2, h3, h4, h5, h6 {
   transform: translateY(-4px);
 }
 
+/* Auth modal inputs — dark */
+.auth-input {
+  width: 100%;
+  background: var(--color-surface-elevated-dark);
+  border: 1px solid var(--color-border-dark);
+  border-radius: 1rem;
+  padding: 1rem 1.1rem;
+  font-size: 1rem;
+  color: #f5f5f5;
+  transition: border-color var(--transition-fast);
+}
+.auth-input::placeholder {
+  color: var(--color-muted);
+}
+.auth-input:focus {
+  outline: none;
+  border-color: var(--color-neon);
+}
+
+/* Form inputs — claros (para formularios sobre fondo claro, ej. publicar) */
+.form-input {
+  width: 100%;
+  background: #F1F2F4;
+  border: 1px solid #E3E5E9;
+  border-radius: 1rem;
+  padding: 1rem 1.1rem;
+  font-size: 1rem;
+  color: #171717;
+  transition: border-color var(--transition-fast);
+}
+.form-input::placeholder {
+  color: var(--color-muted);
+}
+.form-input:focus {
+  outline: none;
+  border-color: var(--color-neon);
+}
+
+/* Campo con etiqueta y placeholder DENTRO de la caja (estilo tarjeta) */
+.field {
+  display: block;
+  background: #F1F2F4;
+  border: 1px solid #E3E5E9;
+  border-radius: 1rem;
+  padding: 0.6rem 1.05rem 0.7rem;
+  transition: border-color var(--transition-fast);
+  cursor: text;
+}
+.field:focus-within {
+  border-color: var(--color-neon);
+}
+.field.field-active {
+  border-color: #171717;
+}
+.field-label {
+  display: block;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #8b8f96;
+  margin-bottom: 0.1rem;
+  user-select: none;
+}
+.field-input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  padding: 0;
+  font-size: 1rem;
+  color: #171717;
+  font-family: inherit;
+}
+.field-input::placeholder {
+  color: #a3a3a3;
+}
+.field-input:focus {
+  outline: none;
+}
+select.field-input {
+  cursor: pointer;
+  appearance: none;
+}
+
 /* Pills */
 .pill {
   display: inline-flex;
@@ -170,20 +255,13 @@ h1, h2, h3, h4, h5, h6 {
               transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* Smooth page transitions */
-.page-enter-active,
-.page-leave-active {
-  transition: opacity 0.3s ease, transform 0.3s ease;
+/* Ocultar scrollbar (rails/carruseles) */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }
-
-.page-enter-from {
-  opacity: 0;
-  transform: translateY(8px);
-}
-
-.page-leave-to {
-  opacity: 0;
-  transform: translateY(-8px);
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
 /* ============================================

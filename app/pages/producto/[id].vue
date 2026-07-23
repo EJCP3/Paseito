@@ -264,7 +264,7 @@ const onWheel = (e: WheelEvent) => {
     <!-- LEFT SIDEBAR (Sticky) -->
     <div class="hidden lg:flex sticky top-0 h-screen w-[32%] flex-shrink-0 flex-col justify-between p-6 z-40">
       <div class="flex items-center gap-2 cursor-pointer text-black" @click="backToGrid">
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-footsteps -rotate-90"><path stroke="none" d="M0 0h24v24H0z" fill="none" /><path d="M4 16.5a2.5 2.5 0 0 0 5 0a1.5 1.5 0 0 0 -1.5 -1.5h-2a1.5 1.5 0 0 0 -1.5 1.5" /><path d="M15 18.5a2.5 2.5 0 0 0 5 0a1.5 1.5 0 0 0 -1.5 -1.5h-2a1.5 1.5 0 0 0 -1.5 1.5" /><path d="M8.52 12h-4.04c-.348 0 -.678 -.179 -.823 -.496c-1.326 -2.904 -.774 -8.504 2.843 -8.504s4.17 5.6 2.843 8.504c-.145 .317 -.475 .496 -.824 .496" /><path d="M19.52 14h-4.04c-.348 0 -.678 -.179 -.823 -.496c-1.326 -2.904 -.774 -8.504 2.843 -8.504s4.17 5.6 2.843 8.504c-.145 .317 -.475 .496 -.824 .496" /></svg>
+        <Icon name="footsteps" width="24" height="24" class="-rotate-90" />
         <span class="text-[20px] font-medium tracking-tight text-black" style="font-family: var(--font-body);">
           Volver a Paseito
         </span>
@@ -278,11 +278,11 @@ const onWheel = (e: WheelEvent) => {
           <div class="flex gap-2 mb-4">
             <button class="bg-[#e3e3df] px-4 py-2 rounded-full text-[15px] font-medium flex items-center gap-2 hover:bg-gray-300 transition-colors">
               Operación: Venta 
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+              <Icon name="chevronDown" width="10" height="10" />
             </button>
             <button class="bg-[#e3e3df] px-4 py-2 rounded-full text-[15px] font-medium flex items-center gap-2 hover:bg-gray-300 transition-colors">
               Moneda: USD 
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+              <Icon name="chevronDown" width="10" height="10" />
             </button>
           </div>
         </div>
@@ -297,7 +297,7 @@ const onWheel = (e: WheelEvent) => {
     <div class="lg:hidden w-full flex items-center justify-between p-4 px-6 z-[1100] bg-[var(--color-surface)] sticky top-0 border-b border-transparent">
       <!-- Left: Logo (Goes back to grid) -->
       <div class="flex items-center gap-2 cursor-pointer text-black" @click="backToGrid">
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-footsteps -rotate-90"><path stroke="none" d="M0 0h24v24H0z" fill="none" /><path d="M4 16.5a2.5 2.5 0 0 0 5 0a1.5 1.5 0 0 0 -1.5 -1.5h-2a1.5 1.5 0 0 0 -1.5 1.5" /><path d="M15 18.5a2.5 2.5 0 0 0 5 0a1.5 1.5 0 0 0 -1.5 -1.5h-2a1.5 1.5 0 0 0 -1.5 1.5" /><path d="M8.52 12h-4.04c-.348 0 -.678 -.179 -.823 -.496c-1.326 -2.904 -.774 -8.504 2.843 -8.504s4.17 5.6 2.843 8.504c-.145 .317 -.475 .496 -.824 .496" /><path d="M19.52 14h-4.04c-.348 0 -.678 -.179 -.823 -.496c-1.326 -2.904 -.774 -8.504 2.843 -8.504s4.17 5.6 2.843 8.504c-.145 .317 -.475 .496 -.824 .496" /></svg>
+        <Icon name="footsteps" width="24" height="24" class="-rotate-90" />
         <span class="text-[20px] font-medium tracking-tight text-black" style="font-family: var(--font-body);">Paseito</span>
       </div>
 
@@ -316,17 +316,9 @@ const onWheel = (e: WheelEvent) => {
 
       <!-- Right: Icons -->
       <div class="flex items-center gap-4 text-black">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
-          <line x1="3" y1="6" x2="21" y2="6"></line>
-          <path d="M16 10a4 4 0 0 1-8 0"></path>
-        </svg>
+        <Icon name="bag" width="20" height="20" stroke-width="1.5" />
         <div @click="isMobileMenuOpen = true" class="cursor-pointer">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
-            <line x1="3" y1="12" x2="21" y2="12"></line>
-            <line x1="3" y1="6" x2="21" y2="6"></line>
-            <line x1="3" y1="18" x2="21" y2="18"></line>
-          </svg>
+          <Icon name="menu" width="24" height="24" stroke-width="1.5" />
         </div>
       </div>
     </div>
@@ -373,7 +365,8 @@ const onWheel = (e: WheelEvent) => {
                   class="absolute top-4 right-4 z-10 bg-white/90 text-black text-sm font-bold px-3.5 py-2 rounded-full flex items-center gap-1.5 shadow-sm hover:scale-105 transition-transform"
                   @click="toggleExpand"
                 >
-                  ⛶ <span class="hidden md:inline">{{ isExpanded ? 'Salir' : 'Pantalla completa' }}</span>
+                  <Icon :name="isExpanded ? 'collapse' : 'expand'" class="w-3.5 h-3.5" />
+                  <span class="hidden md:inline">{{ isExpanded ? 'Salir' : 'Pantalla completa' }}</span>
                 </button>
                 <div class="absolute bottom-4 left-4 z-10 bg-black/75 text-white text-[13px] font-semibold px-3.5 py-1.5 rounded-full backdrop-blur-md transition-opacity duration-300">
                   {{ activeSceneLabel }}
@@ -469,12 +462,7 @@ const onWheel = (e: WheelEvent) => {
               @click="showDescription = true"
             >
               <div class="w-[50px] h-[50px] lg:w-[60px] lg:h-[60px] rounded-xl lg:rounded-[14px] flex items-center justify-center bg-[#e3e3df] text-gray-500">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lg:w-6 lg:h-6">
-                  <line x1="21" y1="10" x2="3" y2="10"></line>
-                  <line x1="21" y1="6" x2="3" y2="6"></line>
-                  <line x1="21" y1="14" x2="3" y2="14"></line>
-                  <line x1="21" y1="18" x2="3" y2="18"></line>
-                </svg>
+                <Icon name="filterLines" width="20" height="20" class="lg:w-6 lg:h-6" />
               </div>
               <span class="text-[10px] lg:text-[11px] font-bold text-center leading-tight mt-1" :class="showDescription ? 'text-black' : 'text-gray-600'">Detalles</span>
             </div>
@@ -488,11 +476,11 @@ const onWheel = (e: WheelEvent) => {
               <div class="flex flex-wrap gap-2 mb-4">
                 <button class="bg-[#e3e3df] px-4 py-2 rounded-full text-[15px] font-medium flex items-center gap-2 hover:bg-gray-300 transition-colors">
                   Operación: Venta 
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                  <Icon name="chevronDown" width="10" height="10" />
                 </button>
                 <button class="bg-[#e3e3df] px-4 py-2 rounded-full text-[15px] font-medium flex items-center gap-2 hover:bg-gray-300 transition-colors">
                   Moneda: USD 
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                  <Icon name="chevronDown" width="10" height="10" />
                 </button>
               </div>
             </div>
@@ -528,15 +516,10 @@ const onWheel = (e: WheelEvent) => {
         <div v-show="isMobileMenuOpen" class="fixed inset-0 z-[2000] bg-[#4a4a4a] text-white flex flex-col">
           <div class="flex items-center justify-between p-6">
             <div class="flex items-center gap-2 cursor-pointer text-white">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" class="text-white">
-                <path fill-rule="evenodd" clip-rule="evenodd" d="M11.966 22.028a.747.747 0 01-.137-1.042c1.472-1.895 2.502-3.824 3.013-5.596.505-1.751.528-3.411.025-4.887a1.144 1.144 0 00-.022-.06l-.008-.02a3.841 3.841 0 01-.157-.457c-.171-.58-.337-1.393.003-2.316C15.006 6.784 15.688 6 17 6c1.026 0 1.942.545 2.56 1.39.61.835.94 1.954.94 3.11 0 1.155-.33 2.274-.94 3.11-.62.846-1.536 1.39-2.56 1.39-.444 0-.847-.123-1.196-.32.062.593.037 1.258-.112 1.922-.387 1.722-1.189 3.497-2.616 5.378a.75.75 0 01-1.11.047zM17.5 13.5c.783 0 1.458-.426 1.92-1.057.452-.619.69-1.424.69-2.222 0-1.052-.401-2.008-1.082-2.735C18.358 6.771 17.502 6 17 6c-.347 0-.585.148-.711.365-.121.209-.153.518-.046.883a4.707 4.707 0 00.323.834c.548 1.168.807 2.68.213 4.417a8.558 8.558 0 01-.849 1.838A2.697 2.697 0 0017 13.5zm-5.419 6.275a.75.75 0 01-1.02-.294c-1.637-2.883-2.62-5.736-2.92-8.232-.303-2.528.271-4.801 1.758-6.666C10.748 3.517 11.967 2.5 13.5 2.5c1.196 0 2.274.52 3.064 1.385a.75.75 0 11-1.106 1.015c-.569-.621-1.341-.9-2.072-.9-1.22 0-2.195.836-2.85 1.658C9.37 7.087 8.89 8.926 9.155 11.13c.264 2.203 1.144 4.8 2.632 7.42a.75.75 0 01-.294 1.021z" fill="currentColor"/>
-              </svg>
+              <Icon name="footstepsSolid" width="24" height="24" stroke="none" class="text-white" />
             </div>
             <div @click="isMobileMenuOpen = false" class="cursor-pointer text-white">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
-                <line x1="18" y1="6" x2="6" y2="18"></line>
-                <line x1="6" y1="6" x2="18" y2="18"></line>
-              </svg>
+              <Icon name="close" width="24" height="24" stroke-width="1.5" />
             </div>
           </div>
           <div class="flex-1 overflow-y-auto px-6 pt-4 pb-12 no-scrollbar">

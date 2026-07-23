@@ -16,7 +16,7 @@ export default defineEventHandler(async (event) => {
   }
 
   if (!listing) {
-    throw createError({ statusCode: 404, statusMessage: 'Listado no encontrado' })
+    throw createError({ statusCode: 404, statusMessage: 'Anuncio no encontrado' })
   }
 
   return listing

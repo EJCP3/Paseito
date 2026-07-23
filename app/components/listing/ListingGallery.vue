@@ -65,9 +65,9 @@ onMounted(() => {
 
     <!-- Empty state -->
     <div v-else class="text-center py-20">
-      <div class="text-5xl mb-4">🔍</div>
+      <Icon name="search" class="w-12 h-12 mx-auto mb-4" style="color: var(--color-muted-light);" />
       <h3 class="text-xl font-bold mb-2" style="font-family: var(--font-heading);">
-        No se encontraron listados
+        No se encontraron anuncios
       </h3>
       <p style="color: var(--color-muted);">
         Intenta ajustar los filtros de búsqueda

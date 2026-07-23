@@ -82,7 +82,7 @@ watch(() => props.show, (val) => {
         <!-- Modal -->
         <div class="relative bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 z-10">
           <h3 class="text-lg font-bold mb-4" style="font-family: var(--font-heading);">
-            {{ editingHotspot ? 'Editar' : 'Nuevo' }} Hotspot
+            {{ editingHotspot ? 'Editar' : 'Nuevo' }} punto de interés
           </h3>
 
           <div class="space-y-4">
@@ -95,58 +95,59 @@ watch(() => props.show, (val) => {
                   :class="{ active: type === HotspotType.LINK }"
                   @click="type = HotspotType.LINK"
                 >
-                  🔗 {{ HotspotTypeLabels[HotspotType.LINK] }}
+                  <Icon name="link" class="w-3.5 h-3.5" />
+                  {{ HotspotTypeLabels[HotspotType.LINK] }}
                 </button>
                 <button
                   class="pill flex-1 justify-center"
                   :class="{ active: type === HotspotType.INFO }"
                   @click="type = HotspotType.INFO"
                 >
-                  ℹ️ {{ HotspotTypeLabels[HotspotType.INFO] }}
+                  <Icon name="infoCircle" class="w-3.5 h-3.5" />
+                  {{ HotspotTypeLabels[HotspotType.INFO] }}
                 </button>
               </div>
             </div>
 
             <!-- Escena destino (solo para LINK) -->
             <div v-if="type === HotspotType.LINK">
-              <label class="text-xs font-semibold block mb-2" style="color: var(--color-muted);">Escena destino</label>
-              <select
-                v-model="targetSceneId"
-                class="select select-bordered w-full rounded-xl"
-                id="hotspot-target-scene"
-              >
-                <option value="">Seleccionar escena...</option>
-                <option v-for="s in availableScenes" :key="s.id" :value="s.id">
-                  {{ s.name }}
-                </option>
-              </select>
+              <label class="field relative">
+                <span class="field-label">Escena destino</span>
+                <select v-model="targetSceneId" class="field-input" id="hotspot-target-scene">
+                  <option value="">Seleccionar escena...</option>
+                  <option v-for="s in availableScenes" :key="s.id" :value="s.id">
+                    {{ s.name }}
+                  </option>
+                </select>
+                <Icon name="chevronDown" class="w-4 h-4 absolute right-4 bottom-3 pointer-events-none" style="color: var(--color-muted);" />
+              </label>
             </div>
 
             <!-- Título -->
-            <div>
-              <label class="text-xs font-semibold block mb-2" style="color: var(--color-muted);">
+            <label class="field">
+              <span class="field-label">
                 Título {{ type === HotspotType.INFO ? '(requerido)' : '(opcional)' }}
-              </label>
+              </span>
               <input
                 v-model="title"
                 type="text"
-                class="input input-bordered w-full rounded-xl"
+                class="field-input"
                 placeholder="Ej: Sala principal, Motor V6..."
                 id="hotspot-title"
               />
-            </div>
+            </label>
 
             <!-- Texto (solo para INFO) -->
-            <div v-if="type === HotspotType.INFO">
-              <label class="text-xs font-semibold block mb-2" style="color: var(--color-muted);">Descripción</label>
+            <label v-if="type === HotspotType.INFO" class="field">
+              <span class="field-label">Descripción</span>
               <textarea
                 v-model="text"
-                class="textarea textarea-bordered w-full rounded-xl"
+                class="field-input resize-none"
                 rows="3"
                 placeholder="Describe este punto de interés..."
                 id="hotspot-text"
               />
-            </div>
+            </label>
 
             <!-- Coordenadas (read-only) -->
             <div class="flex gap-4 text-xs" style="color: var(--color-muted-light);">

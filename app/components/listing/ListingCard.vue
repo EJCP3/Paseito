@@ -45,11 +45,15 @@ const locationText = computed(() => {
   }
   return ''
 })
+
+const publishedDate = computed(() =>
+  new Intl.DateTimeFormat('es-DO', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(props.listing.createdAt))
+)
 </script>
 
 <template>
   <NuxtLink
-    :to="`/listado/${listing.slug}`"
+    :to="`/anuncio/${listing.slug}`"
     class="card-paseito group block"
     :id="`listing-card-${listing.id}`"
   >
@@ -65,7 +69,7 @@ const locationText = computed(() => {
       <!-- Badge tipo -->
       <div class="absolute top-3 left-3 z-10">
         <span class="pill text-xs !py-1 !px-3 !bg-white/90 !border-0 shadow-sm">
-          {{ ListingTypeIcons[listing.type as keyof typeof ListingTypeIcons] }}
+          <Icon :name="ListingTypeIcons[listing.type as keyof typeof ListingTypeIcons]" class="w-3.5 h-3.5" />
           {{ ListingTypeLabels[listing.type as keyof typeof ListingTypeLabels] }}
         </span>
       </div>
@@ -91,6 +95,9 @@ const locationText = computed(() => {
           <p v-if="locationText" class="text-sm mt-0.5 truncate" style="color: var(--color-muted);">
             {{ locationText }}
           </p>
+          <p class="text-xs mt-0.5" style="color: var(--color-muted-light);">
+            Publicado el {{ publishedDate }}
+          </p>
         </div>
       </div>
 
@@ -103,15 +110,11 @@ const locationText = computed(() => {
         <!-- Specs rápidos -->
         <div v-if="listing.bedrooms !== null && listing.bedrooms !== undefined" class="flex items-center gap-3 text-xs" style="color: var(--color-muted);">
           <span v-if="listing.bedrooms" class="flex items-center gap-1">
-            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-              <path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
-            </svg>
+            <Icon name="bed" class="w-3.5 h-3.5" />
             {{ listing.bedrooms }}
           </span>
           <span v-if="listing.bathrooms" class="flex items-center gap-1">
-            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-              <path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-            </svg>
+            <Icon name="bath" class="w-3.5 h-3.5" />
             {{ listing.bathrooms }}
           </span>
           <span v-if="listing.areaM2" class="flex items-center gap-1">

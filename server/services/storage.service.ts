@@ -1,57 +1,80 @@
-// Service — Storage (Cloudflare R2 / S3)
-// Abstracción sobre el proveedor de almacenamiento
-// TODO: Conectar con R2 real cuando se tengan las credenciales
+// Service — Storage (Cloudinary)
+// Subida firmada vía su API REST directa (fetch + crypto nativo, sin SDK)
+import { createHash } from 'node:crypto'
+
+function signParams(params: Record<string, string | number>, apiSecret: string) {
+  const toSign = Object.keys(params)
+    .sort()
+    .map((key) => `${key}=${params[key]}`)
+    .join('&')
+  return createHash('sha1').update(toSign + apiSecret).digest('hex')
+}
 
 /**
- * Genera una URL firmada para subida directa a R2/S3
- * En producción: usa AWS SDK con credenciales de R2
- * Por ahora: devuelve una URL de placeholder
+ * Sube una imagen a Cloudinary y devuelve la URL completa + una miniatura recortada
  */
-export async function generateUploadUrl(params: {
-  fileName: string
-  contentType: string
-  listingId: string
-}): Promise<{ uploadUrl: string; publicUrl: string }> {
+export async function uploadImage(file: Buffer, folder: string): Promise<{ url: string; thumbUrl: string }> {
   const config = useRuntimeConfig()
-
-  // Si no hay credenciales de R2, devolver URL de placeholder
-  if (!config.r2AccountId || !config.r2AccessKeyId) {
-    console.warn('[Storage] R2 no configurado — usando URLs de placeholder')
-    const publicUrl = `/panoramas/${params.listingId}/${params.fileName}`
-    return {
-      uploadUrl: '', // No hay URL de subida real
-      publicUrl,
-    }
+  if (!config.cloudName || !config.cloudApiKey || !config.cloudApiSecret) {
+    throw createError({ statusCode: 501, statusMessage: 'Cloudinary no configurado. Agrega las credenciales en .env' })
   }
 
-  // TODO: Implementar generación de presigned URL con @aws-sdk/s3-request-presigner
-  // cuando se configuren las credenciales de R2:
-  //
-  // import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3'
-  // import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
-  //
-  // const client = new S3Client({
-  //   region: 'auto',
-  //   endpoint: `https://${config.r2AccountId}.r2.cloudflarestorage.com`,
-  //   credentials: {
-  //     accessKeyId: config.r2AccessKeyId,
-  //     secretAccessKey: config.r2SecretAccessKey,
-  //   },
-  // })
-  //
-  // const key = `listings/${params.listingId}/${Date.now()}-${params.fileName}`
-  // const command = new PutObjectCommand({
-  //   Bucket: config.r2BucketName,
-  //   Key: key,
-  //   ContentType: params.contentType,
-  // })
-  //
-  // const uploadUrl = await getSignedUrl(client, command, { expiresIn: 3600 })
-  // const publicUrl = `https://pub-xxx.r2.dev/${key}`
-  // return { uploadUrl, publicUrl }
+  const timestamp = Math.floor(Date.now() / 1000)
+  const signature = signParams({ folder, timestamp }, config.cloudApiSecret)
 
-  throw createError({
-    statusCode: 501,
-    statusMessage: 'Almacenamiento R2 no configurado. Agrega las credenciales en .env',
+  const form = new FormData()
+  form.append('file', new Blob([file]))
+  form.append('api_key', config.cloudApiKey)
+  form.append('timestamp', String(timestamp))
+  form.append('folder', folder)
+  form.append('signature', signature)
+
+  const res = await fetch(`https://api.cloudinary.com/v1_1/${config.cloudName}/image/upload`, {
+    method: 'POST',
+    body: form,
   })
+
+  if (!res.ok) {
+    console.error('[Storage] Error subiendo a Cloudinary:', res.status, await res.text())
+    throw createError({ statusCode: 502, statusMessage: 'Error al subir la imagen' })
+  }
+
+  const data = await res.json() as { secure_url: string }
+  return {
+    url: data.secure_url,
+    thumbUrl: data.secure_url.replace('/upload/', '/upload/w_500,h_500,c_fill,q_auto,f_auto/'),
+  }
+}
+
+/**
+ * Elimina una imagen de Cloudinary a partir de su URL (best-effort:
+ * si falla, solo se loguea — el borrado en BD no debe bloquearse por esto).
+ */
+export async function deleteImage(url: string): Promise<void> {
+  const config = useRuntimeConfig()
+  if (!config.cloudName || !config.cloudApiKey || !config.cloudApiSecret) return
+
+  // public_id = ruta tras /upload/vNNN/, sin extensión
+  const m = url.match(/\/upload\/(?:v\d+\/)?(.+)\.[a-z0-9]+$/i)
+  if (!m) return
+
+  const publicId = decodeURIComponent(m[1])
+  const timestamp = Math.floor(Date.now() / 1000)
+  const signature = signParams({ public_id: publicId, timestamp }, config.cloudApiSecret)
+
+  const form = new FormData()
+  form.append('public_id', publicId)
+  form.append('api_key', config.cloudApiKey)
+  form.append('timestamp', String(timestamp))
+  form.append('signature', signature)
+
+  try {
+    const res = await fetch(`https://api.cloudinary.com/v1_1/${config.cloudName}/image/destroy`, {
+      method: 'POST',
+      body: form,
+    })
+    if (!res.ok) console.error('[Storage] Error borrando de Cloudinary:', res.status, await res.text())
+  } catch (err) {
+    console.error('[Storage] Error borrando de Cloudinary:', err)
+  }
 }

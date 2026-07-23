@@ -16,6 +16,7 @@ export default defineEventHandler(async (event) => {
     maxPrice: query.maxPrice ? Number(query.maxPrice) : undefined,
     minBedrooms: query.minBedrooms ? Number(query.minBedrooms) : undefined,
     search: query.search || undefined,
+    excludeId: query.excludeId || undefined,
     page: query.page ? Number(query.page) : 1,
     limit: query.limit ? Number(query.limit) : 12,
   })

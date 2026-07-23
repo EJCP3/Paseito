@@ -6,8 +6,11 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'ID requerido' })
   }
 
-  // TODO: Obtener usuario autenticado
-  const ownerId = 'demo-user-001'
+  const session = await auth.api.getSession({ headers: event.headers })
+  if (!session?.user) {
+    throw createError({ statusCode: 401, statusMessage: 'No autenticado' })
+  }
+  const ownerId = session.user.id
 
   await deleteListing(id, ownerId)
 

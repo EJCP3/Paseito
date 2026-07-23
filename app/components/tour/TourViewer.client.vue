@@ -7,6 +7,7 @@
 import { Viewer } from '@photo-sphere-viewer/core'
 import { VirtualTourPlugin } from '@photo-sphere-viewer/virtual-tour-plugin'
 import { MarkersPlugin } from '@photo-sphere-viewer/markers-plugin'
+import { AutorotatePlugin } from '@photo-sphere-viewer/autorotate-plugin'
 import '@photo-sphere-viewer/core/index.css'
 import '@photo-sphere-viewer/markers-plugin/index.css'
 import '@photo-sphere-viewer/virtual-tour-plugin/index.css'
@@ -26,14 +27,34 @@ const activeSceneName = ref('')
 const showHint = ref(true)
 let viewer: Viewer | null = null
 
-onMounted(() => {
-  if (!containerRef.value || !props.scenes.length) return
+// En carga completa (reload/hidratación SSR) el ref del contenedor puede estar aún
+// sin asignar o medir 0px cuando corre onMounted; Photo Sphere Viewer crearía un
+// canvas 0x0 (o no se crearía) y quedaría en blanco. Esperamos (hasta ~2s) a que el
+// contenedor exista y tenga tamaño real antes de instanciar el visor.
+function waitForContainer(frames = 120): Promise<HTMLElement | null> {
+  return new Promise((resolve) => {
+    const check = (n: number) => {
+      const el = containerRef.value
+      if (el && el.offsetWidth > 0 && el.offsetHeight > 0) return resolve(el)
+      if (n <= 0) return resolve(el ?? null)
+      requestAnimationFrame(() => check(n - 1))
+    }
+    check(frames)
+  })
+}
+
+onMounted(async () => {
+  if (!props.scenes.length) return
 
   // Set initial active scene name
   activeSceneName.value = props.scenes[0]?.name || ''
 
+  const container = await waitForContainer()
+  if (!container) return // desmontado o sin contenedor
+
+  try {
   viewer = new Viewer({
-    container: containerRef.value,
+    container,
     // Primera panorámica como default (será gestionada por VirtualTourPlugin)
     navbar: false,
     loadingTxt: 'Cargando vista 360°...',
@@ -55,7 +76,7 @@ onMounted(() => {
                 position: { yaw: h.yaw, pitch: h.pitch },
               })),
           })),
-          startNode: props.scenes[0]?.id,
+          startNodeId: props.scenes[0]?.id,
         },
       ],
       [
@@ -80,6 +101,9 @@ onMounted(() => {
           ),
         },
       ],
+      // Gira solo a los 2s de inactividad y se retoma tras cada pausa por
+      // interacción del usuario (comportamiento por defecto del plugin).
+      [AutorotatePlugin, { autostartDelay: 1000, autorotateSpeed: '1rpm' }],
     ],
   })
 
@@ -95,10 +119,22 @@ onMounted(() => {
     })
   }
 
+  // Al estar listo, re-mide y re-renderiza tras el layout definitivo.
+  // Esto evita el canvas en blanco cuando la página se carga completa (reload).
+  viewer.addEventListener('ready', () => {
+    requestAnimationFrame(() => {
+      viewer?.autoSize()
+      viewer?.needsUpdate()
+    })
+  }, { once: true })
+
   // Ocultar hint después de la primera interacción
   viewer.addEventListener('position-updated', () => {
     if (showHint.value) showHint.value = false
   }, { once: true })
+  } catch (err) {
+    console.error('[TourViewer] Error al crear el visor 360°:', err)
+  }
 })
 
 // Navegar a escena programáticamente
@@ -136,24 +172,24 @@ defineExpose({ goToScene, toggleFullscreen })
 
 <template>
   <div class="viewer-wrapper relative" :class="{ 'fixed inset-0 z-50': isFullscreen }">
-    <!-- Viewer container -->
+    <!-- Viewer container (ancho y bajo, tipo landscape) -->
     <div
       ref="containerRef"
       class="w-full overflow-hidden"
-      :class="isFullscreen ? 'h-full rounded-none' : 'h-[60vh] md:h-[70vh] rounded-2xl'"
+      :class="isFullscreen ? 'h-full rounded-none' : 'max-w-[768px] mx-auto aspect-[16/10] rounded-2xl'"
       :style="{ borderRadius: isFullscreen ? '0' : 'var(--radius-viewer)' }"
     />
 
     <!-- Overlay UI -->
     <template v-if="scenes.length">
-      <!-- Badge 360° -->
+      <!-- Badge 360° (arriba izquierda) -->
       <div class="viewer-badge-360 glass-dark" style="color: var(--color-neon);">
         360°
       </div>
 
-      <!-- Nombre de escena activa -->
-      <div v-if="activeSceneName" class="absolute top-3 left-16 z-10">
-        <span class="glass-dark rounded-full px-3 py-1 text-xs text-white font-medium">
+      <!-- Título de la escena activa (abajo izquierda) -->
+      <div v-if="activeSceneName" class="absolute bottom-3 left-3 z-10">
+        <span class="glass-dark rounded-full px-3 py-1.5 text-xs text-white font-semibold">
           {{ activeSceneName }}
         </span>
       </div>
@@ -165,24 +201,21 @@ defineExpose({ goToScene, toggleFullscreen })
         enter-from-class="opacity-0"
         leave-to-class="opacity-0"
       >
-        <div v-if="showHint" class="viewer-hint glass-dark rounded-full text-white text-xs">
-          ↔ Arrastra para recorrer
+        <div v-if="showHint" class="viewer-hint glass-dark rounded-full text-white text-xs flex items-center gap-1.5">
+          <Icon name="dragHorizontal" class="w-3.5 h-3.5" />
+          Arrastra para recorrer
         </div>
       </Transition>
 
-      <!-- Botón fullscreen -->
+      <!-- Botón pantalla completa (pill con texto, arriba derecha) -->
       <button
-        class="absolute top-3 right-3 z-10 glass-dark rounded-lg p-2 hover:bg-white/20 transition-colors cursor-pointer"
+        class="absolute top-3 right-3 z-10 flex items-center gap-1.5 bg-white/90 text-black text-sm font-semibold px-3.5 py-2 rounded-full shadow-sm hover:bg-white transition-colors cursor-pointer"
         @click="toggleFullscreen"
         :aria-label="isFullscreen ? 'Salir de pantalla completa' : 'Pantalla completa'"
         id="viewer-fullscreen-btn"
       >
-        <svg v-if="!isFullscreen" class="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-          <path d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
-        </svg>
-        <svg v-else class="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-          <path d="M9 9V4.5M9 9H4.5M9 9L3.75 3.75M9 15v4.5M9 15H4.5M9 15l-5.25 5.25M15 9h4.5M15 9V4.5M15 9l5.25-5.25M15 15h4.5M15 15v4.5m0-4.5l5.25 5.25" />
-        </svg>
+        <Icon :name="isFullscreen ? 'collapse' : 'expand'" class="w-4 h-4" />
+        <span>{{ isFullscreen ? 'Salir' : 'Pantalla completa' }}</span>
       </button>
 
       <!-- Exit fullscreen bar -->

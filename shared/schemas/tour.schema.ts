@@ -13,6 +13,11 @@ export const CreateSceneSchema = z.object({
   listingId: z.string().min(1),
 })
 
+// Schema para renombrar una escena
+export const UpdateSceneSchema = z.object({
+  name: z.string().min(1, 'El nombre de la escena es requerido').max(80),
+})
+
 // Schema para crear/actualizar un hotspot
 export const HotspotSchema = z.object({
   id: z.string().optional(), // Presente al actualizar
@@ -48,15 +53,8 @@ export const UpdateHotspotsSchema = z.object({
   hotspots: z.array(HotspotSchema),
 })
 
-// Schema para solicitar URL de subida firmada
-export const UploadUrlRequestSchema = z.object({
-  fileName: z.string().min(1),
-  contentType: z.string().regex(/^image\/(jpeg|png|webp|tiff)$/, 'Tipo de archivo no soportado'),
-  listingId: z.string().min(1),
-})
-
 // Tipos inferidos
 export type CreateSceneInput = z.infer<typeof CreateSceneSchema>
+export type UpdateSceneInput = z.infer<typeof UpdateSceneSchema>
 export type HotspotInput = z.infer<typeof HotspotSchema>
 export type UpdateHotspotsInput = z.infer<typeof UpdateHotspotsSchema>
-export type UploadUrlRequest = z.infer<typeof UploadUrlRequestSchema>

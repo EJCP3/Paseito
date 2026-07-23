@@ -34,53 +34,62 @@ function generateSlug(title: string): string {
 /**
  * Obtener listados con filtros y paginación
  */
+function getMockListings(filters: ListingFiltersInput) {
+  const { type, city, sector, minPrice, maxPrice, search, excludeId, page, limit } = filters
+
+  // Filtrado de mock data en memoria
+  let data = [...mockListings]
+
+  if (excludeId) {
+    data = data.filter(l => l.id !== excludeId)
+  }
+  if (type) {
+    data = data.filter(l => l.type === type)
+  }
+  if (city) {
+    data = data.filter(l => l.city?.toLowerCase().includes(city.toLowerCase()))
+  }
+  if (sector) {
+    data = data.filter(l => l.sector?.toLowerCase().includes(sector.toLowerCase()))
+  }
+  if (minPrice !== undefined) {
+    data = data.filter(l => Number(l.price) >= minPrice)
+  }
+  if (maxPrice !== undefined) {
+    data = data.filter(l => Number(l.price) <= maxPrice)
+  }
+  if (search) {
+    const q = search.toLowerCase()
+    data = data.filter(l =>
+      l.title.toLowerCase().includes(q) ||
+      l.description.toLowerCase().includes(q) ||
+      l.city?.toLowerCase().includes(q) ||
+      l.sector?.toLowerCase().includes(q)
+    )
+  }
+
+  const total = data.length
+  const paginatedData = data.slice((page - 1) * limit, page * limit)
+
+  return {
+    data: paginatedData,
+    total,
+    page,
+    limit,
+    totalPages: Math.ceil(total / limit),
+  }
+}
+
 export async function getListings(filters: ListingFiltersInput) {
-  const { type, status, city, sector, minPrice, maxPrice, minBedrooms, search, page, limit } = filters
+  const { type, status, city, sector, minPrice, maxPrice, minBedrooms, search, excludeId, page, limit } = filters
 
   if (useMock()) {
     console.log('[Listings Service] Usando datos de prueba (mock)')
-    
-    // Filtrado de mock data en memoria
-    let data = [...mockListings]
-    
-    if (type) {
-      data = data.filter(l => l.type === type)
-    }
-    if (city) {
-      data = data.filter(l => l.city?.toLowerCase().includes(city.toLowerCase()))
-    }
-    if (sector) {
-      data = data.filter(l => l.sector?.toLowerCase().includes(sector.toLowerCase()))
-    }
-    if (minPrice !== undefined) {
-      data = data.filter(l => Number(l.price) >= minPrice)
-    }
-    if (maxPrice !== undefined) {
-      data = data.filter(l => Number(l.price) <= maxPrice)
-    }
-    if (search) {
-      const q = search.toLowerCase()
-      data = data.filter(l => 
-        l.title.toLowerCase().includes(q) || 
-        l.description.toLowerCase().includes(q) ||
-        l.city?.toLowerCase().includes(q) ||
-        l.sector?.toLowerCase().includes(q)
-      )
-    }
-
-    const total = data.length
-    const paginatedData = data.slice((page - 1) * limit, page * limit)
-
-    return {
-      data: paginatedData,
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit),
-    }
+    return getMockListings(filters)
   }
 
   const where: Prisma.ListingWhereInput = {
+    ...(excludeId && { id: { not: excludeId } }),
     ...(type && { type }),
     ...(status ? { status } : { status: 'ACTIVE' }), // Por defecto solo activos
     ...(city && { city: { contains: city, mode: 'insensitive' as const } }),
@@ -123,7 +132,7 @@ export async function getListings(filters: ListingFiltersInput) {
     }
   } catch (error) {
     console.error('[Listings Service] Error en base de datos, fallback a mock:', error)
-    return getListings(filters) // Fuerza fallback recursivo (detectará error y forzará en memoria si falló)
+    return getMockListings(filters)
   }
 }
 
@@ -136,7 +145,7 @@ export async function getListingBySlug(slug: string) {
   }
 
   try {
-    return await prisma.listing.findUnique({
+    const listing = await prisma.listing.findUnique({
       where: { slug },
       include: {
         photos: { orderBy: { order: 'asc' } },
@@ -144,9 +153,19 @@ export async function getListingBySlug(slug: string) {
           orderBy: { order: 'asc' },
           include: { hotspots: true },
         },
-        owner: { select: { id: true, name: true, phone: true } },
+        nearbyPlaces: { orderBy: { distanceM: 'asc' } },
+        owner: {
+          select: {
+            id: true, name: true, phone: true, image: true, verificationTier: true,
+            _count: { select: { listings: { where: { status: 'ACTIVE' } } } },
+          },
+        },
       },
     })
+    if (!listing) return null
+
+    const { _count, ...owner } = listing.owner
+    return { ...listing, owner: { ...owner, activeListingsCount: _count.listings } }
   } catch (error) {
     console.error('[Listings Service] Error en db, fallback a mock para slug:', slug)
     return mockListings.find(l => l.slug === slug) || null
@@ -170,12 +189,36 @@ export async function getListingById(id: string) {
           orderBy: { order: 'asc' },
           include: { hotspots: true },
         },
+        nearbyPlaces: { orderBy: { distanceM: 'asc' } },
         owner: { select: { id: true, name: true, phone: true } },
       },
     })
   } catch (error) {
     console.error('[Listings Service] Error en db, fallback a mock para ID:', id)
     return mockListings.find(l => l.id === id) || null
+  }
+}
+
+/**
+ * Obtener todos los anuncios de un usuario (cualquier estado, para "Mi cuenta")
+ */
+export async function getListingsByOwner(ownerId: string) {
+  if (useMock()) {
+    return mockListings.filter(l => l.ownerId === ownerId)
+  }
+
+  try {
+    return await prisma.listing.findMany({
+      where: { ownerId },
+      include: {
+        photos: { orderBy: { order: 'asc' }, take: 1 },
+        scenes: { orderBy: { order: 'asc' }, take: 1, select: { previewUrl: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    })
+  } catch (error) {
+    console.error('[Listings Service] Error en db, fallback a mock para owner:', ownerId)
+    return mockListings.filter(l => l.ownerId === ownerId)
   }
 }
 
@@ -190,6 +233,7 @@ export async function createListing(data: CreateListingInput, ownerId: string) {
       id: `listing-${Date.now()}`,
       slug,
       ownerId,
+      status: 'ACTIVE',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       ...data,
@@ -201,12 +245,14 @@ export async function createListing(data: CreateListingInput, ownerId: string) {
     return newListing
   }
 
+  // No hay paso de moderación/aprobación: el listado queda visible de inmediato.
   return prisma.listing.create({
     data: {
       ...data,
       slug,
       ownerId,
       price: data.price,
+      status: 'ACTIVE',
     },
   })
 }
@@ -221,13 +267,13 @@ export async function updateListing(id: string, data: UpdateListingInput, ownerI
       mockListings[idx] = { ...mockListings[idx], ...data } as any
       return mockListings[idx]
     }
-    throw createError({ statusCode: 404, statusMessage: 'Listado no encontrado' })
+    throw createError({ statusCode: 404, statusMessage: 'Anuncio no encontrado' })
   }
 
   // Verificar propiedad
   const listing = await prisma.listing.findUnique({ where: { id }, select: { ownerId: true } })
   if (!listing || listing.ownerId !== ownerId) {
-    throw createError({ statusCode: 403, statusMessage: 'No tienes permiso para editar este listado' })
+    throw createError({ statusCode: 403, statusMessage: 'No tienes permiso para editar este anuncio' })
   }
 
   return prisma.listing.update({
@@ -246,13 +292,36 @@ export async function deleteListing(id: string, ownerId: string) {
       mockListings.splice(idx, 1)
       return { success: true }
     }
-    throw createError({ statusCode: 404, statusMessage: 'Listado no encontrado' })
+    throw createError({ statusCode: 404, statusMessage: 'Anuncio no encontrado' })
   }
 
   const listing = await prisma.listing.findUnique({ where: { id }, select: { ownerId: true } })
   if (!listing || listing.ownerId !== ownerId) {
-    throw createError({ statusCode: 403, statusMessage: 'No tienes permiso para eliminar este listado' })
+    throw createError({ statusCode: 403, statusMessage: 'No tienes permiso para eliminar este anuncio' })
   }
 
   return prisma.listing.delete({ where: { id } })
+}
+
+/**
+ * Agregar una foto a un anuncio (solo el dueño)
+ */
+export async function addPhoto(listingId: string, ownerId: string, data: { url: string; thumbUrl: string; name: string | null; order: number }) {
+  const listing = await prisma.listing.findUnique({ where: { id: listingId }, select: { ownerId: true } })
+  if (!listing || listing.ownerId !== ownerId) {
+    throw createError({ statusCode: 403, statusMessage: 'No tienes permiso para editar este anuncio' })
+  }
+
+  return prisma.photo.create({
+    data: { listingId, url: data.url, thumbUrl: data.thumbUrl, name: data.name, order: data.order },
+  })
+}
+
+export async function renamePhoto(photoId: string, ownerId: string, name: string) {
+  const photo = await prisma.photo.findUnique({ where: { id: photoId }, select: { listing: { select: { ownerId: true } } } })
+  if (!photo || photo.listing.ownerId !== ownerId) {
+    throw createError({ statusCode: 403, statusMessage: 'No tienes permiso para editar esta foto' })
+  }
+
+  return prisma.photo.update({ where: { id: photoId }, data: { name: name.trim() || null } })
 }

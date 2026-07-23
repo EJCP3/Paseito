@@ -4,6 +4,7 @@
  * Tipo, precio, ciudad, habitaciones
  */
 import { ListingType, ListingTypeLabels, ListingTypeIcons } from '~~/shared/types/enums'
+import locations from '~~/shared/data/rd-locations.json'
 
 const emit = defineEmits<{
   (e: 'update:filters', filters: Record<string, any>): void
@@ -14,16 +15,23 @@ const searchQuery = ref('')
 const minPrice = ref<number | undefined>()
 const maxPrice = ref<number | undefined>()
 const selectedCity = ref<string | null>(null)
+const selectedSector = ref<string | null>(null)
+
+// Sectores de la ciudad elegida (mismo vocabulario que el form de publicación)
+const sectorsForCity = computed(() =>
+  locations.find((l) => l.city === selectedCity.value)?.sectors ?? []
+)
+watch(selectedCity, () => { selectedSector.value = null })
 
 const types = [
-  { value: null, label: 'Todos', icon: '🏷️' },
+  { value: null, label: 'Todos', icon: 'tag' },
   { value: ListingType.APARTMENT, label: ListingTypeLabels[ListingType.APARTMENT], icon: ListingTypeIcons[ListingType.APARTMENT] },
   { value: ListingType.HOUSE, label: ListingTypeLabels[ListingType.HOUSE], icon: ListingTypeIcons[ListingType.HOUSE] },
   { value: ListingType.VEHICLE, label: ListingTypeLabels[ListingType.VEHICLE], icon: ListingTypeIcons[ListingType.VEHICLE] },
 ]
 
-// Ciudades de ejemplo
-const cities = ['Santo Domingo', 'Santiago', 'Punta Cana', 'La Romana', 'Puerto Plata']
+// Provincias reales de RD (dataset compartido con el form de publicación)
+const cities = locations.map((l) => l.city)
 
 function emitFilters() {
   emit('update:filters', {
@@ -32,20 +40,19 @@ function emitFilters() {
     minPrice: minPrice.value,
     maxPrice: maxPrice.value,
     city: selectedCity.value || undefined,
+    sector: selectedSector.value || undefined,
   })
 }
 
 // Emitir cuando cambian los filtros
-watch([selectedType, searchQuery, minPrice, maxPrice, selectedCity], emitFilters)
+watch([selectedType, searchQuery, minPrice, maxPrice, selectedCity, selectedSector], emitFilters)
 </script>
 
 <template>
   <div class="space-y-4" id="listing-filters">
     <!-- Barra de búsqueda -->
     <div class="relative">
-      <svg class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5" style="color: var(--color-muted-light);" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-      </svg>
+      <Icon name="search" class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5" style="color: var(--color-muted-light);" />
       <input
         v-model="searchQuery"
         type="text"
@@ -66,7 +73,7 @@ watch([selectedType, searchQuery, minPrice, maxPrice, selectedCity], emitFilters
         @click="selectedType = t.value"
         :id="`filter-type-${t.value || 'all'}`"
       >
-        <span>{{ t.icon }}</span>
+        <Icon :name="t.icon" class="w-3.5 h-3.5" />
         {{ t.label }}
       </button>
     </div>
@@ -82,6 +89,18 @@ watch([selectedType, searchQuery, minPrice, maxPrice, selectedCity], emitFilters
       >
         <option :value="null">Todas las ciudades</option>
         <option v-for="city in cities" :key="city" :value="city">{{ city }}</option>
+      </select>
+
+      <!-- Sector (dependiente de la ciudad) -->
+      <select
+        v-model="selectedSector"
+        class="select select-sm select-bordered rounded-full text-sm"
+        style="font-family: var(--font-body);"
+        :disabled="!sectorsForCity.length"
+        id="filter-sector"
+      >
+        <option :value="null">{{ sectorsForCity.length ? 'Todos los sectores' : 'Sector (elige ciudad)' }}</option>
+        <option v-for="s in sectorsForCity" :key="s" :value="s">{{ s }}</option>
       </select>
 
       <!-- Rango de precio -->

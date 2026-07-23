@@ -4,18 +4,26 @@ import { createListing } from '~~/server/services/listing.service'
 
 
 export default defineEventHandler(async (event) => {
-  // TODO: Obtener usuario autenticado con Better Auth
-  // const session = await getSession(event)
-  // if (!session?.user) throw createError({ statusCode: 401, statusMessage: 'No autenticado' })
-  // const ownerId = session.user.id
-
-  // Placeholder: usuario demo
-  const ownerId = 'demo-user-001'
+  const session = await auth.api.getSession({ headers: event.headers })
+  if (!session?.user) {
+    throw createError({ statusCode: 401, statusMessage: 'No autenticado' })
+  }
+  if (!session.user.emailVerified) {
+    throw createError({ statusCode: 403, statusMessage: 'Debes verificar tu correo antes de publicar' })
+  }
+  const ownerId = session.user.id
 
   const body = await readBody(event)
-  const data = CreateListingSchema.parse(body)
+  const parsed = CreateListingSchema.safeParse(body)
+  if (!parsed.success) {
+    throw createError({
+      statusCode: 400,
+      statusMessage: 'Datos inválidos',
+      message: parsed.error.issues[0]?.message || 'Datos inválidos',
+    })
+  }
 
-  const listing = await createListing(data, ownerId)
+  const listing = await createListing(parsed.data, ownerId)
 
   setResponseStatus(event, 201)
   return listing

@@ -5,15 +5,15 @@ export default <RouterConfig> {
     if (savedPosition) {
       return savedPosition
     }
-    
+
     if (to.hash) {
       return {
         el: to.hash,
         behavior: 'instant',
-        top: 0
+        top: 0,
       }
     }
 
     return { top: 0, behavior: 'instant' }
-  }
+  },
 }

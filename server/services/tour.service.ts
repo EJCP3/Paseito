@@ -1,5 +1,5 @@
 // Service — Tours (escenas 360° y hotspots)
-import type { CreateSceneInput, UpdateHotspotsInput } from '~~/shared/schemas/tour.schema'
+import type { CreateSceneInput, UpdateSceneInput, UpdateHotspotsInput } from '~~/shared/schemas/tour.schema'
 import { mockListings } from '~~/server/utils/mockData'
 
 /**
@@ -17,7 +17,7 @@ export async function createScene(data: CreateSceneInput) {
   if (useMock()) {
     const listing = mockListings.find(l => l.id === data.listingId)
     if (!listing) {
-      throw createError({ statusCode: 404, statusMessage: 'Listado no encontrado' })
+      throw createError({ statusCode: 404, statusMessage: 'Anuncio no encontrado' })
     }
 
     const newScene = {
@@ -41,10 +41,26 @@ export async function createScene(data: CreateSceneInput) {
   })
 
   if (!listing) {
-    throw createError({ statusCode: 404, statusMessage: 'Listado no encontrado' })
+    throw createError({ statusCode: 404, statusMessage: 'Anuncio no encontrado' })
   }
 
   return prisma.scene.create({ data })
+}
+
+/**
+ * Renombrar una escena (solo el dueño del anuncio)
+ */
+export async function updateScene(id: string, ownerId: string, data: UpdateSceneInput) {
+  const scene = await prisma.scene.findUnique({
+    where: { id },
+    select: { listing: { select: { ownerId: true } } },
+  })
+
+  if (!scene || scene.listing.ownerId !== ownerId) {
+    throw createError({ statusCode: 403, statusMessage: 'No tienes permiso para editar esta escena' })
+  }
+
+  return prisma.scene.update({ where: { id }, data })
 }
 
 /**
@@ -158,7 +174,7 @@ export async function reorderScenes(listingId: string, sceneIds: string[]) {
       listing.scenes.sort((a, b) => a.order - b.order)
       return listing.scenes
     }
-    throw createError({ statusCode: 404, statusMessage: 'Listado no encontrado' })
+    throw createError({ statusCode: 404, statusMessage: 'Anuncio no encontrado' })
   }
 
   return prisma.$transaction(
