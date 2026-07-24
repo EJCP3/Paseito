@@ -24,6 +24,7 @@ const MIN_SHARP_WIDTH = 2048
 
 const photos = ref<Photo[]>([])
 const listingSlug = ref('')
+const listingType = ref('')
 const loadingListing = ref(true)
 
 // Subidas en curso/fallidas, por imagen (corrige el estado "atascado en gris")
@@ -48,6 +49,7 @@ onMounted(async () => {
     store.setScenes(listing.scenes || [])
     photos.value = listing.photos || []
     listingSlug.value = listing.slug || ''
+    listingType.value = listing.type || ''
   } catch {
     uploadError.value = 'No se pudo cargar el anuncio. Recarga la página.'
   } finally {
@@ -197,7 +199,7 @@ async function handleRenamePhoto(photo: Photo) {
   await $fetch(`/api/photos/${photo.id}`, { method: 'PATCH', body: { name: photo.name } })
 }
 
-// --- Hotspots (sin cambios) ---
+// --- Hotspots ---
 const showHotspotForm = ref(false)
 const pendingYaw = ref(0)
 const pendingPitch = ref(0)
@@ -208,8 +210,42 @@ function handleHotspotAdd(data: { yaw: number; pitch: number; sceneId: string })
   showHotspotForm.value = true
 }
 
-function handleHotspotSave(data: any) {
+async function handleHotspotSave(data: {
+  type: string
+  yaw: number
+  pitch: number
+  title?: string
+  text?: string
+  targetSceneId?: string
+}) {
   showHotspotForm.value = false
+
+  const sceneId = store.activeSceneId
+  const scene = store.scenes.find((s) => s.id === sceneId)
+  if (!scene) return
+
+  // Optimista: se agrega con un id temporal y aparece de inmediato sobre la
+  // esfera (TourEditor observa scene.hotspots y re-renderiza los markers).
+  const optimistic = {
+    id: `temp-${Date.now()}`,
+    type: data.type as any,
+    yaw: data.yaw,
+    pitch: data.pitch,
+    title: data.title ?? null,
+    text: data.text ?? null,
+    targetSceneId: data.targetSceneId ?? null,
+    sceneId,
+  }
+  scene.hotspots.push(optimistic)
+
+  try {
+    // Persiste toda la escena; el store reconcilia los ids con los de la BD.
+    await store.saveHotspots(sceneId)
+  } catch {
+    // Rollback del optimista si el guardado falló.
+    scene.hotspots = scene.hotspots.filter((h) => h.id !== optimistic.id)
+    uploadError.value = 'No se pudo guardar el punto de interés. Intenta de nuevo.'
+  }
 }
 
 async function handleRenameScene(sceneId: string, name: string) {
@@ -234,7 +270,9 @@ async function publishListing() {
 
   isPublishing.value = true
   try {
-    // El anuncio ya quedó ACTIVE al crearse; aseguramos tener el slug para redirigir
+    // 1. Trabajo de servidor: el anuncio ya quedó ACTIVE al crearse, solo
+    //    aseguramos tener el slug para redirigir (aquí iría cualquier guardado
+    //    final que se agregue a futuro). El botón queda en "Publicando…".
     let slug = listingSlug.value
     if (!slug) {
       const listing = await $fetch<any>(`/api/listings/${listingId.value}`)
@@ -242,10 +280,16 @@ async function publishListing() {
     }
     if (!slug) throw new Error('sin slug')
 
+    // 2. Precargar la portada del destino ANTES de animar, para que la página
+    //    nueva ya esté lista cuando la franja del sweep la descubra.
     const coverImage = photos.value[0]?.thumbUrl || photos.value[0]?.url || store.scenes[0]?.previewUrl
+    await preloadImage(coverImage)
+
+    // 3. Éxito → recién ahora la animación de confirmación, que hace el swap de
+    //    página en su punto medio (la franja enmascara el cambio de ruta).
     sweep(async () => {
       await navigateTo(`/anuncio/${slug}`)
-      await preloadImage(coverImage)
+      await nextTick()
     })
   } catch {
     publishError.value = 'No se pudo publicar el anuncio. Intenta de nuevo.'
@@ -419,6 +463,12 @@ async function publishListing() {
             Sube fotos normales de tu propiedad — se mostrarán como galería en el anuncio
           </p>
         </div>
+      </section>
+      <!-- SECCIÓN: Disponibilidad (solo villas) -->
+      <section v-if="listingType === 'VILLA'" class="mt-10">
+        <h2 class="text-lg font-bold mb-1" style="font-family: var(--font-heading);">Disponibilidad</h2>
+        <p class="text-sm mb-4" style="color: var(--color-muted);">Marca las fechas disponibles o bloqueadas para el alquiler de tu villa. Puedes editarlas cuando quieras.</p>
+        <AvailabilityEditor :listing-id="listingId" />
       </section>
     </template>
 

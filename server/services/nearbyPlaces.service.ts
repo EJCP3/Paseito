@@ -1,10 +1,27 @@
 // Service — Puntos de interés cercanos (búsqueda vía Overpass API + persistencia)
 import type { NearbyPlaceResult, NearbyPlaceCategory } from '~~/shared/schemas/nearbyPlace.schema'
 
-const OVERPASS_URL = 'https://overpass-api.de/api/interpreter'
+// El servidor público de Overpass es poco fiable (504/429); probamos varios
+// mirrors en orden hasta que uno responda.
+const OVERPASS_ENDPOINTS = [
+  'https://overpass-api.de/api/interpreter',
+  'https://overpass.kumi.systems/api/interpreter',
+  'https://overpass.private.coffee/api/interpreter',
+]
 const USER_AGENT = 'Paseito/1.0 (contacto@paseito.com)'
 const DEFAULT_RADIUS_M = 800
 const MAX_RESULTS = 30
+
+// Caché en memoria por zona (lat/lng redondeados ~100m + radio) para no repetir
+// la misma consulta a Overpass y aliviar el rate-limit. TTL de 1h.
+// ponytail: caché en memoria, por instancia; si hay varias instancias o se
+// necesita persistencia, mover a Redis/tabla. Suficiente para el MVP.
+const CACHE_TTL_MS = 60 * 60 * 1000
+const nearbyCache = new Map<string, { at: number; places: NearbyPlaceResult[] }>()
+
+function cacheKey(lat: number, lng: number, radiusM: number): string {
+  return `${lat.toFixed(3)},${lng.toFixed(3)},${radiusM}`
+}
 
 interface OverpassElement {
   lat?: number
@@ -96,52 +113,80 @@ function dedupePlaces(places: NearbyPlaceResult[]): NearbyPlaceResult[] {
 }
 
 /**
+ * Consulta Overpass probando cada mirror en orden, con un reintento y backoff
+ * por endpoint (más largo ante 429). Lanza si TODOS los mirrors fallan, para
+ * que quien llama pueda distinguir "servicio caído" de "no hay lugares".
+ */
+async function fetchOverpassElements(query: string): Promise<OverpassElement[]> {
+  let lastError: unknown
+
+  for (const url of OVERPASS_ENDPOINTS) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const response = await $fetch<OverpassResponse>(url, {
+          method: 'POST',
+          body: `data=${encodeURIComponent(query)}`,
+          headers: {
+            'User-Agent': USER_AGENT,
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          timeout: 20000,
+        })
+        return response.elements ?? []
+      } catch (error: any) {
+        lastError = error
+        const status = error?.response?.status ?? error?.statusCode
+        // 429 (rate limit) espera más antes de reintentar; el resto, backoff corto.
+        const backoffMs = status === 429 ? 1500 * (attempt + 1) : 500 * (attempt + 1)
+        await new Promise((resolve) => setTimeout(resolve, backoffMs))
+      }
+    }
+  }
+
+  throw lastError ?? new Error('Overpass no disponible')
+}
+
+/**
  * Busca los puntos de interés cercanos a una coordenada usando Overpass API.
- * Si Overpass falla, está caído o tarda demasiado, devuelve un arreglo vacío
- * en vez de lanzar — la publicación del listado nunca debe romperse por esto.
+ * Devuelve un arreglo (posiblemente vacío = no hay POIs) en caso de éxito, o
+ * LANZA si el servicio está caído tras probar todos los mirrors — así el
+ * endpoint de preview puede avisar al usuario en vez de mostrar "no hay lugares".
+ * Los resultados se cachean por zona para no repetir la consulta.
  */
 export async function searchNearbyPlaces(params: { lat: number; lng: number; radiusM?: number }): Promise<NearbyPlaceResult[]> {
   const { lat, lng, radiusM = DEFAULT_RADIUS_M } = params
+
+  const key = cacheKey(lat, lng, radiusM)
+  const cached = nearbyCache.get(key)
+  if (cached && Date.now() - cached.at < CACHE_TTL_MS) return cached.places
+
   const query = buildOverpassQuery(lat, lng, radiusM)
+  const elements = await fetchOverpassElements(query) // lanza si todo falla
 
-  try {
-    const response = await $fetch<OverpassResponse>(OVERPASS_URL, {
-      method: 'POST',
-      body: `data=${encodeURIComponent(query)}`,
-      headers: {
-        'User-Agent': USER_AGENT,
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      timeout: 20000,
+  const results: NearbyPlaceResult[] = []
+  for (const el of elements) {
+    const name = el.tags?.name?.trim()
+    if (!name) continue // descartamos POIs sin nombre
+
+    const category = mapTagsToCategory(el.tags ?? {})
+    if (!category) continue
+
+    const poiLat = el.lat ?? el.center?.lat
+    const poiLng = el.lon ?? el.center?.lon
+    if (poiLat === undefined || poiLng === undefined) continue
+
+    results.push({
+      name,
+      category,
+      distanceM: Math.round(haversineDistance(lat, lng, poiLat, poiLng)),
+      lat: poiLat,
+      lng: poiLng,
     })
-
-    const results: NearbyPlaceResult[] = []
-
-    for (const el of response.elements ?? []) {
-      const name = el.tags?.name?.trim()
-      if (!name) continue // descartamos POIs sin nombre
-
-      const category = mapTagsToCategory(el.tags ?? {})
-      if (!category) continue
-
-      const poiLat = el.lat ?? el.center?.lat
-      const poiLng = el.lon ?? el.center?.lon
-      if (poiLat === undefined || poiLng === undefined) continue
-
-      results.push({
-        name,
-        category,
-        distanceM: Math.round(haversineDistance(lat, lng, poiLat, poiLng)),
-        lat: poiLat,
-        lng: poiLng,
-      })
-    }
-
-    return dedupePlaces(results).sort((a, b) => a.distanceM - b.distanceM).slice(0, MAX_RESULTS)
-  } catch (error) {
-    console.error('[NearbyPlaces Service] Error consultando Overpass, se continúa sin POIs:', error)
-    return []
   }
+
+  const places = dedupePlaces(results).sort((a, b) => a.distanceM - b.distanceM).slice(0, MAX_RESULTS)
+  nearbyCache.set(key, { at: Date.now(), places })
+  return places
 }
 
 /**
@@ -179,7 +224,13 @@ export async function detectAndSaveNearbyPlaces(
     throw createError({ statusCode: 403, statusMessage: 'No tienes permiso para editar este anuncio' })
   }
 
-  const found = await searchNearbyPlaces({ lat, lng })
+  // Al publicar, un Overpass caído no debe romper el flujo: se guarda sin POIs.
+  let found: NearbyPlaceResult[] = []
+  try {
+    found = await searchNearbyPlaces({ lat, lng })
+  } catch (error) {
+    console.error('[NearbyPlaces Service] Overpass no disponible al publicar, se guarda sin POIs:', error)
+  }
   const filtered = excludeNames.length ? found.filter((p) => !excludeNames.includes(p.name)) : found
 
   return saveNearbyPlaces(listingId, filtered)

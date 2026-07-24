@@ -33,6 +33,31 @@ enum HotspotType {
   INFO
 }
 
+enum ListingMode {
+  SALE
+  RENT_LONG_TERM
+  RENT_DAILY
+}
+
+enum FurnishedStatus {
+  NONE
+  PARTIAL
+  FULL
+}
+
+enum PropertyCondition {
+  NEW
+  RENOVATED
+  USED
+  UNDER_CONSTRUCTION
+}
+
+enum AvailabilityStatus {
+  AVAILABLE
+  BLOCKED
+  BOOKED
+}
+
 // ============================================
 // Models
 // ============================================
@@ -105,6 +130,10 @@ model Listing {
   id          String        @id @default(uuid())
   slug        String        @unique
   type        ListingType
+  // Venta/alquiler mensual (apartamento y casa) o alquiler diario (villa,
+  // siempre RENT_DAILY, asignado por el servicio — no lo elige el usuario).
+  // Null para vehículos y para anuncios creados antes de este campo.
+  mode        ListingMode?
   title       String
   description String
   price       Decimal
@@ -114,7 +143,7 @@ model Listing {
   // Campos de inmueble
   areaM2    Float?
   bedrooms  Int?
-  bathrooms Int?
+  bathrooms Float? // admite medios baños (ej. 2.5)
   parking   Int?
   sector    String?
   city      String?
@@ -123,6 +152,47 @@ model Listing {
   // (arrastrando el pin). Se usan para detectar los puntos de interés cercanos.
   latitude  Float?
   longitude Float?
+
+  // Comunes a apartamento/casa/villa
+  furnished        FurnishedStatus?
+  petsAllowed      Boolean?
+  condition        PropertyCondition?
+  constructionYear Int?
+  amenities        String[]          @default([])
+
+  // Apartamento
+  floorNumber    Int?
+  totalFloors    Int?
+  hasElevator    Boolean?
+  water24h       Boolean?
+  power24h       Boolean?
+  hasBalcony     Boolean?
+  maintenanceFee Decimal?
+
+  // Casa
+  floors       Int?
+  hasPatio     Boolean?
+  patioSize    Float?
+  hasPool      Boolean?
+  hasGarage    Boolean?
+  garageSpots  Int?
+  hasCistern   Boolean?
+  hasGenerator Boolean?
+  landAreaM2   Float?
+
+  // Villa (siempre alquiler por día)
+  villaPoolType       String?
+  villaPoolSize       Float?
+  guestCapacity       Int?
+  bedsCount           Int?
+  villaServices       String[] @default([])
+  pricePerDay         Decimal?
+  pricePerWeek        Decimal?
+  minNights           Int?
+  securityDeposit     Decimal?
+  cancellationPolicy  String?
+  checkInTime         String?
+  checkOutTime        String?
 
   // Campos de vehículo
   brand     String?
@@ -141,6 +211,7 @@ model Listing {
   scenes       Scene[]
   favorites    Favorite[]
   nearbyPlaces NearbyPlace[]
+  availability AvailabilityRange[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -148,6 +219,21 @@ model Listing {
   @@index([type, status, city, sector])
   @@index([price])
   @@index([slug])
+}
+
+// Rangos de disponibilidad de una villa (alquiler por día), editables por el
+// dueño desde el editor de calendario. BOOKED queda listo para cuando haya
+// reservas reales (Fase 2) — hoy solo se crean AVAILABLE/BLOCKED a mano.
+model AvailabilityRange {
+  id        String             @id @default(uuid())
+  listing   Listing            @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  listingId String
+  startDate DateTime
+  endDate   DateTime
+  status    AvailabilityStatus @default(AVAILABLE)
+  createdAt DateTime           @default(now())
+
+  @@index([listingId, startDate, endDate])
 }
 
 // Mínimo para poder contar "guardados" en el perfil del vendedor (Fase 2

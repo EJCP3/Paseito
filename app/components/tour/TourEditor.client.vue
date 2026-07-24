@@ -97,6 +97,10 @@ watch(() => props.activeSceneId, async () => {
   renderMarkers()
 })
 
+// Re-renderizar los markers cuando cambian los hotspots de la escena activa
+// (agregar/eliminar), sin esperar a cambiar de escena ni recargar la página.
+watch(() => activeScene.value?.hotspots, () => renderMarkers(), { deep: true })
+
 onBeforeUnmount(() => {
   if (viewer) {
     viewer.destroy()

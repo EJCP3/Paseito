@@ -88,6 +88,18 @@ onBeforeUnmount(() => {
   map?.remove()
   map = null
 })
+
+// Salto explícito a una coordenada (ej. resuelta desde un link de Google
+// Maps pegado por el dueño) — a diferencia del watcher de `center`, esto
+// siempre recentra el mapa aunque el dueño ya haya tocado el pin antes,
+// porque es una acción deliberada, no un re-centrado automático de fondo.
+function jumpTo(lat: number, lng: number) {
+  hasUserInteracted = true
+  map?.setView([lat, lng], 16)
+  setPin(lat, lng)
+}
+
+defineExpose({ jumpTo })
 </script>
 
 <template>

@@ -1,5 +1,13 @@
 // Tipos compartidos cliente/servidor para listados y tours
-import type { ListingType, ListingStatus, HotspotType } from './enums'
+import type {
+  ListingType,
+  ListingStatus,
+  HotspotType,
+  ListingMode,
+  FurnishedStatus,
+  PropertyCondition,
+  AvailabilityStatus,
+} from './enums'
 
 // ============================================
 // Modelos base
@@ -61,10 +69,20 @@ export interface NearbyPlace {
   listingId: string
 }
 
+export interface AvailabilityRange {
+  id: string
+  listingId: string
+  startDate: string
+  endDate: string
+  status: AvailabilityStatus
+  createdAt: string
+}
+
 export interface Listing {
   id: string
   slug: string
   type: ListingType
+  mode?: ListingMode | null
   title: string
   description: string
   price: number | string
@@ -80,6 +98,47 @@ export interface Listing {
   city?: string | null
   latitude?: number | null
   longitude?: number | null
+
+  // Comunes a apartamento/casa/villa
+  furnished?: FurnishedStatus | null
+  petsAllowed?: boolean | null
+  condition?: PropertyCondition | null
+  constructionYear?: number | null
+  amenities?: string[]
+
+  // Apartamento
+  floorNumber?: number | null
+  totalFloors?: number | null
+  hasElevator?: boolean | null
+  water24h?: boolean | null
+  power24h?: boolean | null
+  hasBalcony?: boolean | null
+  maintenanceFee?: number | string | null
+
+  // Casa
+  floors?: number | null
+  hasPatio?: boolean | null
+  patioSize?: number | null
+  hasPool?: boolean | null
+  hasGarage?: boolean | null
+  garageSpots?: number | null
+  hasCistern?: boolean | null
+  hasGenerator?: boolean | null
+  landAreaM2?: number | null
+
+  // Villa
+  villaPoolType?: string | null
+  villaPoolSize?: number | null
+  guestCapacity?: number | null
+  bedsCount?: number | null
+  villaServices?: string[]
+  pricePerDay?: number | string | null
+  pricePerWeek?: number | string | null
+  minNights?: number | null
+  securityDeposit?: number | string | null
+  cancellationPolicy?: string | null
+  checkInTime?: string | null
+  checkOutTime?: string | null
 
   // Vehículo
   brand?: string | null
@@ -115,6 +174,7 @@ export interface ListingFull extends Listing {
   photos: Photo[]
   scenes: SceneWithHotspots[]
   nearbyPlaces?: NearbyPlace[]
+  availability?: AvailabilityRange[]
   owner: Pick<User, 'id' | 'name' | 'phone' | 'image' | 'verificationTier'> & { activeListingsCount: number }
 }
 

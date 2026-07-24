@@ -27,6 +27,24 @@ const activeSceneName = ref('')
 const showHint = ref(true)
 let viewer: Viewer | null = null
 
+// Markers de los hotspots INFO de una escena, en el formato que espera el nodo
+// del VirtualTourPlugin (tooltip con glassmorphism, mismo look del editor).
+function infoMarkersForScene(scene: SceneWithHotspots) {
+  return scene.hotspots
+    .filter((h) => h.type === 'INFO')
+    .map((h) => ({
+      id: h.id,
+      position: { yaw: h.yaw, pitch: h.pitch },
+      html: `
+        <div class="glass-dark rounded-xl px-3 py-2 max-w-[200px] cursor-pointer">
+          ${h.title ? `<p class="font-bold text-xs text-white">${h.title}</p>` : ''}
+          ${h.text ? `<p class="text-xs text-white/70 mt-0.5">${h.text}</p>` : ''}
+        </div>
+      `,
+      anchor: 'center center',
+    }))
+}
+
 // En carga completa (reload/hidratación SSR) el ref del contenedor puede estar aún
 // sin asignar o medir 0px cuando corre onMounted; Photo Sphere Viewer crearía un
 // canvas 0x0 (o no se crearía) y quedaría en blanco. Esperamos (hasta ~2s) a que el
@@ -75,32 +93,18 @@ onMounted(async () => {
                 nodeId: h.targetSceneId!,
                 position: { yaw: h.yaw, pitch: h.pitch },
               })),
+            // Los INFO van como markers DEL NODO: el VirtualTourPlugin controla
+            // el MarkersPlugin y reemplaza los markers al cambiar de escena, así
+            // que un `markers` global se borraría. Adjuntándolos al nodo, se
+            // muestran solo en su escena y sobreviven a la navegación.
+            markers: infoMarkersForScene(s),
           })),
           startNodeId: props.scenes[0]?.id,
         },
       ],
-      [
-        MarkersPlugin,
-        {
-          markers: props.scenes.flatMap((s) =>
-            s.hotspots
-              .filter((h) => h.type === 'INFO')
-              .map((h) => ({
-                id: h.id,
-                position: { yaw: h.yaw, pitch: h.pitch },
-                html: `
-                  <div class="glass-dark rounded-xl px-3 py-2 max-w-[200px] cursor-pointer">
-                    ${h.title ? `<p class="font-bold text-xs text-white">${h.title}</p>` : ''}
-                    ${h.text ? `<p class="text-xs text-white/70 mt-0.5">${h.text}</p>` : ''}
-                  </div>
-                `,
-                anchor: 'center center',
-                data: { sceneId: s.id },
-                visible: true,
-              }))
-          ),
-        },
-      ],
+      // MarkersPlugin debe estar registrado para que el VirtualTourPlugin
+      // pinte los markers de cada nodo (sin config global de markers).
+      [MarkersPlugin, {}],
       // Gira solo a los 2s de inactividad y se retoma tras cada pausa por
       // interacción del usuario (comportamiento por defecto del plugin).
       [AutorotatePlugin, { autostartDelay: 1000, autorotateSpeed: '1rpm' }],

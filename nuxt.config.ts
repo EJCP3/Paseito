@@ -92,6 +92,7 @@ export default defineNuxtConfig({
         'gsap/ScrollTrigger',
         'gsap/Flip',
         'leaflet',
+        'v-calendar',
       ],
     },
   },

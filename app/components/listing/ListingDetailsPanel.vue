@@ -40,6 +40,7 @@ const specs = computed(() => {
 const locationText = computed(() => [props.listing.sector, props.listing.city].filter(Boolean).join(', '))
 
 const nearbyPlaces = computed(() => props.listing.nearbyPlaces ?? [])
+const availability = computed(() => props.listing.availability ?? [])
 
 const mapCenter = computed(() => {
   const { latitude, longitude } = props.listing
@@ -138,6 +139,20 @@ async function copyListingLink() {
             <p class="text-xs text-gray-400 mt-4">
               Datos de ubicación &copy; colaboradores de OpenStreetMap.
             </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Disponibilidad (solo villas) -->
+    <div v-if="listing.type === 'VILLA'" class="bg-[#e3e3df] rounded-[24px] overflow-hidden transition-all duration-300">
+      <div @click="toggleAccordion('disponibilidad')" class="px-6 py-4 flex items-center justify-between cursor-pointer hover:bg-gray-300/50 transition-colors">
+        <span class="text-[17px] font-medium" style="font-family: var(--font-body);">Disponibilidad</span>
+      </div>
+      <div class="grid transition-[grid-template-rows,opacity] duration-300 ease-in-out" :class="activeAccordion === 'disponibilidad' ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'">
+        <div class="overflow-hidden">
+          <div class="px-6 pb-6">
+            <AvailabilityCalendar :ranges="availability" />
           </div>
         </div>
       </div>

@@ -154,6 +154,7 @@ export async function getListingBySlug(slug: string) {
           include: { hotspots: true },
         },
         nearbyPlaces: { orderBy: { distanceM: 'asc' } },
+        availability: { orderBy: { startDate: 'asc' } },
         owner: {
           select: {
             id: true, name: true, phone: true, image: true, verificationTier: true,
@@ -227,6 +228,8 @@ export async function getListingsByOwner(ownerId: string) {
  */
 export async function createListing(data: CreateListingInput, ownerId: string) {
   const slug = generateSlug(data.title)
+  // Las villas siempre son alquiler por día — no lo elige el usuario en el form.
+  const mode = data.type === 'VILLA' ? 'RENT_DAILY' : (data as any).mode
 
   if (useMock()) {
     const newListing: any = {
@@ -237,6 +240,7 @@ export async function createListing(data: CreateListingInput, ownerId: string) {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       ...data,
+      mode,
       photos: [],
       scenes: [],
       owner: { id: ownerId, name: 'Usuario Demo', phone: '+18095551234' }
@@ -246,9 +250,12 @@ export async function createListing(data: CreateListingInput, ownerId: string) {
   }
 
   // No hay paso de moderación/aprobación: el listado queda visible de inmediato.
+  // `data` es la unión discriminada (apartamento/casa/villa/vehículo): cada
+  // rama trae solo sus propios campos, todos columnas opcionales del modelo.
   return prisma.listing.create({
     data: {
-      ...data,
+      ...(data as any),
+      mode,
       slug,
       ownerId,
       price: data.price,

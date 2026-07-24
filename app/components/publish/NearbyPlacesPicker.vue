@@ -54,6 +54,33 @@ watch(
   { immediate: true }
 )
 
+// --- Pegar un link de Google Maps: autocompleta el pin y busca los puntos
+// de interés cercanos en un solo paso, sin arrastrar nada a mano ---
+const locationPickerRef = ref<{ jumpTo: (lat: number, lng: number) => void } | null>(null)
+const mapsLink = ref('')
+const isResolvingLink = ref(false)
+const mapsLinkError = ref('')
+
+async function useMapsLink() {
+  const url = mapsLink.value.trim()
+  if (!url) return
+
+  isResolvingLink.value = true
+  mapsLinkError.value = ''
+  try {
+    const coords = await $fetch<{ lat: number; lng: number }>('/api/geocode-maps-link', {
+      method: 'POST',
+      body: { url },
+    })
+    locationPickerRef.value?.jumpTo(coords.lat, coords.lng)
+    await searchNearby()
+  } catch {
+    mapsLinkError.value = 'No pudimos leer ese link. Ajusta el pin manualmente en el mapa.'
+  } finally {
+    isResolvingLink.value = false
+  }
+}
+
 const previewPlaces = ref<NearbyPlaceResult[]>([])
 const isSearching = ref(false)
 const searchError = ref(false)
@@ -91,7 +118,29 @@ function toggleExcluded(name: string) {
 
 <template>
   <div class="space-y-3">
-    <LocationPicker v-model="pin" :center="geocodedCenter" />
+    <!-- Alternativa: pegar un link de Google Maps en vez de arrastrar el pin -->
+    <div class="flex gap-2">
+      <input
+        v-model="mapsLink"
+        type="text"
+        class="field-input flex-1"
+        placeholder="Pega un link de Google Maps (maps.app.goo.gl/...)"
+        @keydown.enter.prevent="useMapsLink"
+      />
+      <button
+        type="button"
+        class="btn btn-sm flex-shrink-0"
+        style="border: 1px solid var(--color-border);"
+        :disabled="!mapsLink.trim() || isResolvingLink"
+        @click="useMapsLink"
+      >
+        <Icon name="link" class="w-3.5 h-3.5 inline mr-1" />
+        {{ isResolvingLink ? 'Leyendo…' : 'Usar link' }}
+      </button>
+    </div>
+    <p v-if="mapsLinkError" class="text-xs text-red-600 px-1">{{ mapsLinkError }}</p>
+
+    <LocationPicker ref="locationPickerRef" v-model="pin" :center="geocodedCenter" />
 
     <button
       type="button"

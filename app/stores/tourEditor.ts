@@ -73,13 +73,17 @@ export const useTourEditorStore = defineStore('tourEditor', () => {
 
     isSaving.value = true
     try {
-      await $fetch('/api/tours/hotspots', {
+      const saved = await $fetch<Hotspot[]>('/api/tours/hotspots', {
         method: 'PUT',
         body: {
           sceneId,
           hotspots: scene.hotspots,
         },
       })
+      // El endpoint recrea los hotspots y devuelve la versión con ids reales de
+      // la BD; reemplazamos la lista para que los ids optimistas (temp-*) queden
+      // reconciliados y las ediciones/eliminaciones posteriores apunten bien.
+      scene.hotspots = saved.map((h) => ({ ...h }))
     } finally {
       isSaving.value = false
     }

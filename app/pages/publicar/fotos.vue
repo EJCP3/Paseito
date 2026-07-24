@@ -1,6 +1,8 @@
 <script setup lang="ts">
 /**
- * Página de subida de fotos — solo la foto de portada del anuncio
+ * Página de subida de fotos — solo la foto de portada del anuncio.
+ * La portada se persiste en el servidor (Photo con order 0) y se rehidrata al
+ * montar, así se muestra sin importar cuántas veces se navegue entre pasos.
  */
 useHead({ title: 'Subir fotos — Paseito' })
 
@@ -9,33 +11,68 @@ const router = useRouter()
 const listingId = computed(() => route.query.id as string)
 const { uploading, uploadImage } = useUpload()
 
-const coverPhoto = ref<{ file: File; preview: string } | null>(null)
+// Portada ya guardada en el servidor (photos[0]). Fuente de verdad al volver.
+const existingCover = ref<{ id: string; url: string; thumbUrl: string } | null>(null)
+// Archivo nuevo elegido localmente, aún sin subir; reemplaza la portada actual.
+const newCover = ref<{ file: File; preview: string } | null>(null)
+const loading = ref(true)
 const error = ref('')
+
+// Qué imagen se muestra: la nueva local tiene prioridad sobre la guardada.
+const previewUrl = computed(() =>
+  newCover.value?.preview || existingCover.value?.url || existingCover.value?.thumbUrl || null
+)
+
+onMounted(async () => {
+  try {
+    const listing = await $fetch<any>(`/api/listings/${listingId.value}`)
+    const cover = listing.photos?.[0]
+    if (cover) existingCover.value = { id: cover.id, url: cover.url, thumbUrl: cover.thumbUrl }
+  } catch {
+    // No bloquea: el usuario puede subir la portada igual.
+  } finally {
+    loading.value = false
+  }
+})
 
 function handleFile(event: Event) {
   const input = event.target as HTMLInputElement
   const file = input.files?.[0]
+  input.value = ''
   if (!file) return
 
-  if (coverPhoto.value) URL.revokeObjectURL(coverPhoto.value.preview)
-  coverPhoto.value = { file, preview: URL.createObjectURL(file) }
-  input.value = ''
+  if (newCover.value) URL.revokeObjectURL(newCover.value.preview)
+  newCover.value = { file, preview: URL.createObjectURL(file) }
 }
 
-function removeCoverPhoto() {
-  if (!coverPhoto.value) return
-  URL.revokeObjectURL(coverPhoto.value.preview)
-  coverPhoto.value = null
+async function removeCover() {
+  // Si hay un archivo local sin subir, solo lo descartamos.
+  if (newCover.value) {
+    URL.revokeObjectURL(newCover.value.preview)
+    newCover.value = null
+    return
+  }
+  // Si la portada ya estaba guardada, la borramos del servidor.
+  if (existingCover.value) {
+    await $fetch(`/api/photos/${existingCover.value.id}`, { method: 'DELETE' }).catch(() => {})
+    existingCover.value = null
+  }
 }
 
 async function handleContinue() {
   error.value = ''
 
-  if (coverPhoto.value) {
-    const result = await uploadImage(coverPhoto.value.file, listingId.value)
+  // Solo subimos si el usuario eligió un archivo nuevo; si conserva la portada
+  // ya guardada no re-subimos (evita duplicados al pasar por este paso varias veces).
+  if (newCover.value) {
+    const result = await uploadImage(newCover.value.file, listingId.value)
     if (!result) {
       error.value = 'No se pudo subir la foto. Intenta de nuevo.'
       return
+    }
+    // Reemplaza la portada anterior para no acumular duplicados con order 0.
+    if (existingCover.value) {
+      await $fetch(`/api/photos/${existingCover.value.id}`, { method: 'DELETE' }).catch(() => {})
     }
     await $fetch(`/api/listings/${listingId.value}/photos`, {
       method: 'POST',
@@ -76,7 +113,7 @@ async function handleContinue() {
 
     <!-- Upload area -->
     <label
-      v-if="!coverPhoto"
+      v-if="!previewUrl"
       class="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-2xl cursor-pointer transition-colors hover:border-[var(--color-neon)]"
       style="border-color: var(--color-border); background: var(--color-surface);"
       id="photo-upload-area"
@@ -89,12 +126,12 @@ async function handleContinue() {
 
     <!-- Cover preview -->
     <div v-else class="relative w-full aspect-video rounded-2xl overflow-hidden">
-      <img :src="coverPhoto.preview" alt="Foto de portada" class="w-full h-full object-cover" />
+      <img :src="previewUrl" alt="Foto de portada" class="w-full h-full object-cover" />
       <button
         type="button"
         class="absolute top-3 right-3 w-9 h-9 rounded-full bg-red-500 text-white flex items-center justify-center shadow-md hover:bg-red-600 transition-colors"
         aria-label="Eliminar foto"
-        @click="removeCoverPhoto"
+        @click="removeCover"
       >
         <Icon name="close" class="w-4 h-4" stroke-width="2.5" />
       </button>
@@ -107,7 +144,7 @@ async function handleContinue() {
       <NuxtLink to="/publicar" class="btn rounded-full flex-1" style="border: 1px solid var(--color-border); background: transparent; color: #171717;">
         Volver
       </NuxtLink>
-      <button class="btn btn-neon flex-1" :disabled="uploading" @click="handleContinue" id="photos-continue">
+      <button class="btn btn-neon flex-1" :disabled="uploading || loading" @click="handleContinue" id="photos-continue">
         {{ uploading ? 'Subiendo…' : 'Continuar → Tour 360°' }}
       </button>
     </div>

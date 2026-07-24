@@ -22,11 +22,16 @@ export const UpdateSceneSchema = z.object({
 export const HotspotSchema = z.object({
   id: z.string().optional(), // Presente al actualizar
   type: HotspotTypeSchema,
-  yaw: z.number().min(-Math.PI).max(Math.PI),
+  // Photo Sphere Viewer entrega el yaw normalizado a [0, 2π) al hacer clic en la
+  // esfera; aceptamos [-2π, 2π] para no rechazar clics de la "mitad de atrás"
+  // (cualquier valor renderiza igual, PSV lo re-normaliza al posicionar).
+  yaw: z.number().min(-2 * Math.PI).max(2 * Math.PI),
   pitch: z.number().min(-Math.PI / 2).max(Math.PI / 2),
-  title: z.string().max(100).optional(),
-  text: z.string().max(500).optional(),
-  targetSceneId: z.string().optional(),
+  // nullish (no optional): tanto la BD como el cliente mandan `null` en los
+  // campos vacíos; `.optional()` rechazaba el null y hacía fallar el guardado.
+  title: z.string().max(100).nullish(),
+  text: z.string().max(500).nullish(),
+  targetSceneId: z.string().nullish(),
 }).superRefine((data, ctx) => {
   // Si es un enlace, requiere escena destino
   if (data.type === 'LINK' && !data.targetSceneId) {

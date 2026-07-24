@@ -163,7 +163,7 @@ watch(() => props.show, (val) => {
             </button>
             <button
               class="btn btn-neon flex-1"
-              :disabled="type === HotspotType.LINK && !targetSceneId"
+              :disabled="(type === HotspotType.LINK && !targetSceneId) || (type === HotspotType.INFO && !title && !text)"
               @click="handleSave"
               id="hotspot-save-btn"
             >

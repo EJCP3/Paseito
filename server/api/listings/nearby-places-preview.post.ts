@@ -13,6 +13,14 @@ export default defineEventHandler(async (event) => {
   const body = await readBody(event)
   const { lat, lng, excludeNames } = NearbyPlacesQuerySchema.parse(body)
 
-  const places = await searchNearbyPlaces({ lat, lng })
+  // Si Overpass está caído tras probar todos los mirrors, searchNearbyPlaces
+  // lanza; devolvemos 502 para que el front muestre "no se pudieron cargar
+  // lugares cercanos" en vez de un falso "no hay lugares".
+  let places
+  try {
+    places = await searchNearbyPlaces({ lat, lng })
+  } catch {
+    throw createError({ statusCode: 502, statusMessage: 'No se pudieron cargar lugares cercanos ahora mismo' })
+  }
   return excludeNames?.length ? places.filter((p) => !excludeNames.includes(p.name)) : places
 })
