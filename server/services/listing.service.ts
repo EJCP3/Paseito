@@ -131,8 +131,8 @@ export async function getListings(filters: ListingFiltersInput) {
       totalPages: Math.ceil(total / limit),
     }
   } catch (error) {
-    console.error('[Listings Service] Error en base de datos, fallback a mock:', error)
-    return getMockListings(filters)
+    console.error('[Listings Service] Error en base de datos:', error)
+    throw error
   }
 }
 
@@ -168,8 +168,8 @@ export async function getListingBySlug(slug: string) {
     const { _count, ...owner } = listing.owner
     return { ...listing, owner: { ...owner, activeListingsCount: _count.listings } }
   } catch (error) {
-    console.error('[Listings Service] Error en db, fallback a mock para slug:', slug)
-    return mockListings.find(l => l.slug === slug) || null
+    console.error('[Listings Service] Error en db al buscar por slug:', slug, error)
+    throw error
   }
 }
 
@@ -195,8 +195,8 @@ export async function getListingById(id: string) {
       },
     })
   } catch (error) {
-    console.error('[Listings Service] Error en db, fallback a mock para ID:', id)
-    return mockListings.find(l => l.id === id) || null
+    console.error('[Listings Service] Error en db al buscar por ID:', id, error)
+    throw error
   }
 }
 
