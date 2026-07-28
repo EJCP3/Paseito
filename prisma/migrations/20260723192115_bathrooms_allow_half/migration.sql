@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Listing" ALTER COLUMN "bathrooms" SET DATA TYPE DOUBLE PRECISION;
