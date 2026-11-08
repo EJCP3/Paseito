@@ -6,6 +6,7 @@ import { mockListings } from '~~/server/utils/mockData'
  * Verifica si debemos usar datos de prueba (mock)
  */
 function useMock(): boolean {
+  if (process.env.NODE_ENV === 'production') return false
   const url = process.env.DATABASE_URL
   return !url || url.includes('user:password')
 }
@@ -82,7 +83,7 @@ export async function getScenesByListingId(listingId: string) {
 /**
  * Actualizar los hotspots de una escena
  */
-export async function updateHotspots(data: UpdateHotspotsInput) {
+export async function updateHotspots(data: UpdateHotspotsInput, userId: string) {
   const { sceneId, hotspots } = data
 
   if (useMock()) {
@@ -90,6 +91,9 @@ export async function updateHotspots(data: UpdateHotspotsInput) {
     for (const listing of mockListings) {
       const scene = listing.scenes.find(s => s.id === sceneId)
       if (scene) {
+        if (listing.ownerId !== userId) {
+          throw createError({ statusCode: 403, statusMessage: 'No tienes permiso para editar esta escena' })
+        }
         scene.hotspots = hotspots.map((h, i) => ({
           id: h.id || `hotspot-${sceneId}-${Date.now()}-${i}`,
           type: h.type as any,
@@ -106,37 +110,40 @@ export async function updateHotspots(data: UpdateHotspotsInput) {
     throw createError({ statusCode: 404, statusMessage: 'Escena no encontrada' })
   }
 
-  // Verificar que la escena existe
+  // La escena debe existir y ser de un anuncio del usuario
   const scene = await prisma.scene.findUnique({
     where: { id: sceneId },
-    select: { id: true },
+    select: { listingId: true, listing: { select: { ownerId: true } } },
   })
 
-  if (!scene) {
-    throw createError({ statusCode: 404, statusMessage: 'Escena no encontrada' })
+  if (!scene || scene.listing.ownerId !== userId) {
+    throw createError({ statusCode: 403, statusMessage: 'No tienes permiso para editar esta escena' })
   }
 
-  // Transacción: borrar existentes + crear nuevos
+  // Cada targetSceneId debe ser una escena del mismo anuncio
+  const targets = [...new Set(hotspots.map((h) => h.targetSceneId).filter((t): t is string => !!t))]
+  if (targets.length) {
+    const found = await prisma.scene.count({ where: { id: { in: targets }, listingId: scene.listingId } })
+    if (found !== targets.length) {
+      throw createError({ statusCode: 400, statusMessage: 'Una escena destino no pertenece a este anuncio' })
+    }
+  }
+
+  // Transacción: borrar existentes + crear nuevos (el cliente necesita los ids reales)
   return prisma.$transaction(async (tx) => {
     await tx.hotspot.deleteMany({ where: { sceneId } })
-
-    const created = await Promise.all(
-      hotspots.map((h) =>
-        tx.hotspot.create({
-          data: {
-            type: h.type,
-            yaw: h.yaw,
-            pitch: h.pitch,
-            title: h.title || null,
-            text: h.text || null,
-            targetSceneId: h.targetSceneId || null,
-            sceneId,
-          },
-        })
-      )
-    )
-
-    return created
+    await tx.hotspot.createMany({
+      data: hotspots.map((h) => ({
+        type: h.type,
+        yaw: h.yaw,
+        pitch: h.pitch,
+        title: h.title || null,
+        text: h.text || null,
+        targetSceneId: h.targetSceneId || null,
+        sceneId,
+      })),
+    })
+    return tx.hotspot.findMany({ where: { sceneId }, orderBy: { id: 'asc' } })
   })
 }
 

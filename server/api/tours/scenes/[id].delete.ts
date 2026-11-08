@@ -11,7 +11,7 @@ export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, 'id')!
   const scene = await prisma.scene.findUnique({
     where: { id },
-    select: { panoramaUrl: true, listing: { select: { ownerId: true } } },
+    select: { panoramaUrl: true, listingId: true, listing: { select: { ownerId: true } } },
   })
   if (!scene || scene.listing.ownerId !== session.user.id) {
     throw createError({ statusCode: 403, statusMessage: 'No tienes permiso para eliminar esta escena' })
@@ -19,7 +19,7 @@ export default defineEventHandler(async (event) => {
 
   await deleteScene(id)
   // Best-effort: limpiar la panorámica del storage (no bloquea la respuesta)
-  deleteImage(scene.panoramaUrl)
+  deleteImage(scene.panoramaUrl, scene.listingId)
 
   return { success: true }
 })

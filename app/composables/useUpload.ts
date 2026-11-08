@@ -9,19 +9,19 @@ export function useUpload() {
    * @param file Archivo de imagen
    * @returns true si la proporción es ~2:1
    */
-  async function validatePanoramaClient(file: File): Promise<{ valid: boolean; ratio: number; width: number }> {
+  async function validatePanoramaClient(file: File): Promise<{ valid: boolean; ratio: number; width: number; height: number }> {
     return new Promise((resolve) => {
       const img = new Image()
       img.onload = () => {
         const ratio = img.width / img.height
         const valid = ratio >= 1.8 && ratio <= 2.2
-        const width = img.width
+        const { width, height } = img
         URL.revokeObjectURL(img.src)
-        resolve({ valid, ratio, width })
+        resolve({ valid, ratio, width, height })
       }
       img.onerror = () => {
         URL.revokeObjectURL(img.src)
-        resolve({ valid: false, ratio: 0, width: 0 })
+        resolve({ valid: false, ratio: 0, width: 0, height: 0 })
       }
       img.src = URL.createObjectURL(file)
     })
@@ -30,7 +30,7 @@ export function useUpload() {
   /**
    * Sube una imagen a Cloudinary a través de nuestro servidor
    */
-  async function uploadImage(file: File, listingId: string): Promise<{ url: string; thumbUrl: string } | null> {
+  async function uploadImage(file: File, listingId: string, kind: 'photo' | 'panorama' = 'photo'): Promise<{ url: string; thumbUrl: string } | null> {
     uploading.value = true
     error.value = null
 
@@ -38,6 +38,7 @@ export function useUpload() {
       const form = new FormData()
       form.append('file', file)
       form.append('listingId', listingId)
+      form.append('kind', kind)
 
       return await $fetch<{ url: string; thumbUrl: string }>('/api/uploads', {
         method: 'POST',

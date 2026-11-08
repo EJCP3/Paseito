@@ -12,6 +12,7 @@ import '@photo-sphere-viewer/core/index.css'
 import '@photo-sphere-viewer/markers-plugin/index.css'
 import '@photo-sphere-viewer/virtual-tour-plugin/index.css'
 import type { SceneWithHotspots } from '~~/shared/types/listing'
+import { escapeHtml } from '~~/shared/utils/escapeHtml'
 
 const props = defineProps<{
   scenes: SceneWithHotspots[]
@@ -37,8 +38,8 @@ function infoMarkersForScene(scene: SceneWithHotspots) {
       position: { yaw: h.yaw, pitch: h.pitch },
       html: `
         <div class="glass-dark rounded-xl px-3 py-2 max-w-[200px] cursor-pointer">
-          ${h.title ? `<p class="font-bold text-xs text-white">${h.title}</p>` : ''}
-          ${h.text ? `<p class="text-xs text-white/70 mt-0.5">${h.text}</p>` : ''}
+          ${h.title ? `<p class="font-bold text-xs text-white">${escapeHtml(h.title)}</p>` : ''}
+          ${h.text ? `<p class="text-xs text-white/70 mt-0.5">${escapeHtml(h.text)}</p>` : ''}
         </div>
       `,
       anchor: 'center center',
@@ -86,7 +87,7 @@ onMounted(async () => {
           nodes: props.scenes.map((s) => ({
             id: s.id,
             panorama: s.panoramaUrl,
-            name: s.name,
+            name: escapeHtml(s.name),
             links: s.hotspots
               .filter((h) => h.type === 'LINK' && h.targetSceneId)
               .map((h) => ({

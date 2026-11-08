@@ -16,7 +16,7 @@ export default defineEventHandler(async (event) => {
   const ownerId = session.user.id
 
   const body = await readBody(event)
-  const data = UpdateListingSchema.parse(body)
+  const data = parseOr400(UpdateListingSchema, body)
 
   return updateListing(id, data, ownerId)
 })

@@ -55,7 +55,7 @@ export const HotspotSchema = z.object({
 // Schema para actualizar todos los hotspots de una escena
 export const UpdateHotspotsSchema = z.object({
   sceneId: z.string().min(1),
-  hotspots: z.array(HotspotSchema),
+  hotspots: z.array(HotspotSchema).max(50, 'Máximo 50 hotspots por escena'),
 })
 
 // Tipos inferidos

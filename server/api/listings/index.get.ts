@@ -6,19 +6,19 @@ import { getListings } from '~~/server/services/listing.service'
 export default defineEventHandler(async (event) => {
   const query = getQuery(event)
 
-  // Parsear y validar filtros
-  const filters = ListingFiltersSchema.parse({
+  // Parsear y validar filtros (el status no es filtrable: siempre ACTIVE)
+  const num = (v: unknown) => (v === undefined || v === '' ? undefined : Number(v))
+  const filters = parseOr400(ListingFiltersSchema, {
     type: query.type || undefined,
-    status: query.status || undefined,
     city: query.city || undefined,
     sector: query.sector || undefined,
-    minPrice: query.minPrice ? Number(query.minPrice) : undefined,
-    maxPrice: query.maxPrice ? Number(query.maxPrice) : undefined,
-    minBedrooms: query.minBedrooms ? Number(query.minBedrooms) : undefined,
+    minPrice: num(query.minPrice),
+    maxPrice: num(query.maxPrice),
+    minBedrooms: num(query.minBedrooms),
     search: query.search || undefined,
     excludeId: query.excludeId || undefined,
-    page: query.page ? Number(query.page) : 1,
-    limit: query.limit ? Number(query.limit) : 12,
+    page: num(query.page) ?? 1,
+    limit: num(query.limit) ?? 12,
   })
 
   return getListings(filters)

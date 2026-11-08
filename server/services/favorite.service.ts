@@ -1,4 +1,6 @@
 // Service — Favoritos ("Mi Lista"), ligados al usuario logueado
+import { publicCoords } from '~~/server/lib/coords'
+
 export async function toggleFavorite(userId: string, listingId: string) {
   const existing = await prisma.favorite.findUnique({
     where: { userId_listingId: { userId, listingId } },
@@ -9,13 +11,18 @@ export async function toggleFavorite(userId: string, listingId: string) {
     return { favorited: false }
   }
 
+  const listing = await prisma.listing.findUnique({ where: { id: listingId }, select: { status: true } })
+  if (listing?.status !== 'ACTIVE') {
+    throw createError({ statusCode: 404, statusMessage: 'Anuncio no encontrado' })
+  }
+
   await prisma.favorite.create({ data: { userId, listingId } })
   return { favorited: true }
 }
 
 export async function getUserFavoriteListings(userId: string) {
   const favorites = await prisma.favorite.findMany({
-    where: { userId },
+    where: { userId, listing: { status: 'ACTIVE' } },
     orderBy: { createdAt: 'desc' },
     include: {
       listing: {
@@ -27,5 +34,5 @@ export async function getUserFavoriteListings(userId: string) {
     },
   })
 
-  return favorites.map((f) => f.listing)
+  return favorites.map((f) => publicCoords(f.listing, userId))
 }

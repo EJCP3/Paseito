@@ -9,7 +9,7 @@ useHead({ title: 'Subir fotos — Paseito' })
 const route = useRoute()
 const router = useRouter()
 const listingId = computed(() => route.query.id as string)
-const { uploading, uploadImage } = useUpload()
+const { uploading, uploadImage, error: uploadErr } = useUpload()
 
 // Portada ya guardada en el servidor (photos[0]). Fuente de verdad al volver.
 const existingCover = ref<{ id: string; url: string; thumbUrl: string } | null>(null)
@@ -67,7 +67,7 @@ async function handleContinue() {
   if (newCover.value) {
     const result = await uploadImage(newCover.value.file, listingId.value)
     if (!result) {
-      error.value = 'No se pudo subir la foto. Intenta de nuevo.'
+      error.value = uploadErr.value || 'No se pudo subir la foto. Intenta de nuevo.'
       return
     }
     // Reemplaza la portada anterior para no acumular duplicados con order 0.

@@ -14,13 +14,9 @@ const route = useRoute()
 const router = useRouter()
 const listingId = computed(() => route.query.id as string)
 const store = useTourEditorStore()
-const { validatePanoramaClient, uploadImage } = useUpload()
+const { validatePanoramaClient, uploadImage, error: uploadErr } = useUpload()
 
 const uploadError = ref('')
-// Aviso no bloqueante: la panorámica se subirá igual, solo advierte que se verá borrosa
-const uploadWarning = ref('')
-// Ancho mínimo recomendado para que una equirectangular no se vea pixelada en la esfera
-const MIN_SHARP_WIDTH = 2048
 
 const photos = ref<Photo[]>([])
 const listingSlug = ref('')
@@ -65,17 +61,16 @@ async function handlePanoramaFile(event: Event) {
   if (!file) return
 
   uploadError.value = ''
-  uploadWarning.value = ''
 
-  const { valid, ratio, width } = await validatePanoramaClient(file)
+  const { valid, ratio, width, height } = await validatePanoramaClient(file)
   if (!valid) {
     uploadError.value = `La imagen no tiene proporción panorámica (2:1). Proporción actual: ${ratio.toFixed(2)}:1`
     return
   }
 
-  // Baja resolución: no bloquea, solo avisa que se verá borrosa en el visor
-  if (width < MIN_SHARP_WIDTH) {
-    uploadWarning.value = `Tu panorámica es de baja resolución (${width}px de ancho), así que se verá borrosa en el visor 360°. Para que se vea nítida, usa una imagen de al menos 4096px de ancho.`
+  if (width < 4000 || height < 2000) {
+    uploadError.value = `La panorámica es demasiado pequeña (${width}×${height}). Mínimo 4000×2000 px.`
+    return
   }
 
   await uploadPanorama(file)
@@ -98,8 +93,8 @@ async function uploadPanorama(file: File, existing?: PendingUpload) {
   }
 
   try {
-    const uploaded = await uploadImage(file, listingId.value)
-    if (!uploaded) throw new Error('upload')
+    const uploaded = await uploadImage(file, listingId.value, 'panorama')
+    if (!uploaded) throw new Error(uploadErr.value || 'upload')
 
     const order = store.scenes.length
     const scene = await $fetch('/api/tours/scenes', {
@@ -116,11 +111,11 @@ async function uploadPanorama(file: File, existing?: PendingUpload) {
     store.addScene({ ...(scene as any), hotspots: [] })
     URL.revokeObjectURL(entry.preview)
     pendingUploads.value = pendingUploads.value.filter((p) => p.key !== entry.key)
-  } catch {
+  } catch (err: any) {
     const item = pendingUploads.value.find((p) => p.key === entry.key)
     if (item) {
       item.status = 'error'
-      item.error = 'No se pudo subir. Reintenta.'
+      item.error = err?.data?.statusMessage || (err?.message && err.message !== 'upload' ? err.message : 'No se pudo subir. Reintenta.')
     }
   }
 }
@@ -152,7 +147,7 @@ async function uploadPhoto(file: File, existing?: PendingUpload) {
 
   try {
     const uploaded = await uploadImage(file, listingId.value)
-    if (!uploaded) throw new Error('upload')
+    if (!uploaded) throw new Error(uploadErr.value || 'upload')
 
     const photo = await $fetch<Photo>(`/api/listings/${listingId.value}/photos`, {
       method: 'POST',
@@ -161,11 +156,11 @@ async function uploadPhoto(file: File, existing?: PendingUpload) {
     photos.value.push(photo)
     URL.revokeObjectURL(entry.preview)
     pendingUploads.value = pendingUploads.value.filter((p) => p.key !== entry.key)
-  } catch {
+  } catch (err: any) {
     const item = pendingUploads.value.find((p) => p.key === entry.key)
     if (item) {
       item.status = 'error'
-      item.error = 'No se pudo subir. Reintenta.'
+      item.error = err?.data?.statusMessage || (err?.message && err.message !== 'upload' ? err.message : 'No se pudo subir. Reintenta.')
     }
   }
 }
@@ -347,10 +342,6 @@ async function publishListing() {
           <span class="text-xs mt-0.5" style="color: var(--color-muted);">Imagen equirectangular (proporción 2:1)</span>
           <input type="file" class="hidden" accept="image/*" @change="handlePanoramaFile" />
         </label>
-        <p v-if="uploadWarning" class="text-sm mb-4 flex items-start gap-1.5" style="color: #b45309;">
-          <Icon name="alertTriangle" class="w-4 h-4 flex-shrink-0 mt-0.5" />
-          <span>{{ uploadWarning }}</span>
-        </p>
 
         <!-- Subidas de panorámicas en curso / con error -->
         <div v-if="pendingPanoUploads.length" class="flex flex-wrap gap-3 mb-4">

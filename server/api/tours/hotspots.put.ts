@@ -1,14 +1,14 @@
-// PUT /api/tours/hotspots — Actualizar hotspots de una escena
+// PUT /api/tours/hotspots — Actualizar hotspots de una escena (solo el dueño del anuncio)
 import { UpdateHotspotsSchema } from '~~/shared/schemas/tour.schema'
 import { updateHotspots } from '~~/server/services/tour.service'
 
-
 export default defineEventHandler(async (event) => {
-  // TODO: Verificar autenticación y propiedad
-  const body = await readBody(event)
-  const data = UpdateHotspotsSchema.parse(body)
+  const session = await auth.api.getSession({ headers: event.headers })
+  if (!session?.user) {
+    throw createError({ statusCode: 401, statusMessage: 'No autenticado' })
+  }
 
-  const hotspots = await updateHotspots(data)
+  const data = parseOr400(UpdateHotspotsSchema, await readBody(event))
 
-  return hotspots
+  return updateHotspots(data, session.user.id)
 })

@@ -74,6 +74,21 @@ export default defineNuxtConfig({
     },
   },
 
+  // Cabeceras de seguridad (sin CSP: va con la auditoría de lanzamiento)
+  routeRules: {
+    '/**': {
+      headers: {
+        'X-Content-Type-Options': 'nosniff',
+        'X-Frame-Options': 'DENY',
+        'Referrer-Policy': 'strict-origin-when-cross-origin',
+        'Permissions-Policy': 'camera=(), microphone=(), geolocation=(self)',
+        ...(process.env.NODE_ENV === 'production' && {
+          'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+        }),
+      },
+    },
+  },
+
   // Image module config
   image: {
     quality: 80,

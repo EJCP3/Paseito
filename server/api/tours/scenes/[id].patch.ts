@@ -14,7 +14,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const body = await readBody(event)
-  const data = UpdateSceneSchema.parse(body)
+  const data = parseOr400(UpdateSceneSchema, body)
 
   return updateScene(id, session.user.id, data)
 })
