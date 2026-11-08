@@ -1,4 +1,5 @@
 // Service — Perfil público del vendedor
+import { publicCoords } from '~~/server/lib/coords'
 import type { SellerProfile } from '~~/shared/types/listing'
 
 export async function getUserProfile(userId: string): Promise<SellerProfile> {
@@ -25,7 +26,7 @@ export async function getUserProfile(userId: string): Promise<SellerProfile> {
 
   return {
     user: { ...user, createdAt: user.createdAt.toISOString() },
-    activeListings: activeListings as any,
+    activeListings: activeListings.map((l) => publicCoords(l)) as any,
     totalSaved,
   }
 }

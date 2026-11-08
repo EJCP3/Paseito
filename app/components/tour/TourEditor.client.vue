@@ -11,6 +11,7 @@ import '@photo-sphere-viewer/markers-plugin/index.css'
 import type { SceneWithHotspots } from '~~/shared/types/listing'
 import type { HotspotInput } from '~~/shared/schemas/tour.schema'
 import { icons } from '~/assets/icons'
+import { escapeHtml } from '~~/shared/utils/escapeHtml'
 
 const props = defineProps<{
   scenes: SceneWithHotspots[]
@@ -82,7 +83,7 @@ function renderMarkers() {
       html: `
         <div class="editor-marker ${h.type === 'LINK' ? 'marker-link' : 'marker-info'}">
           ${h.type === 'LINK' ? linkIcon : infoIcon}
-          <span class="text-[10px]">${h.title || (h.type === 'LINK' ? 'Enlace' : 'Info')}</span>
+          <span class="text-[10px]">${escapeHtml(h.title || (h.type === 'LINK' ? 'Enlace' : 'Info'))}</span>
         </div>
       `,
       anchor: 'center center',

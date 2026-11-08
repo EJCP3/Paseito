@@ -1,13 +1,15 @@
 // Service — Listings CRUD
 // Toda la lógica de negocio de listados vive aquí
-import type { Prisma } from '@prisma/client'
 import type { ListingFiltersInput, CreateListingInput, UpdateListingInput } from '~~/shared/schemas/listing.schema'
 import { mockListings } from '~~/server/utils/mockData'
+import { buildListingWhere } from '~~/server/lib/listingWhere'
+import { publicCoords } from '~~/server/lib/coords'
 
 /**
  * Verifica si debemos usar datos de prueba (mock)
  */
 function useMock(): boolean {
+  if (process.env.NODE_ENV === 'production') return false
   const url = process.env.DATABASE_URL
   return !url || url.includes('user:password')
 }
@@ -72,7 +74,7 @@ function getMockListings(filters: ListingFiltersInput) {
   const paginatedData = data.slice((page - 1) * limit, page * limit)
 
   return {
-    data: paginatedData,
+    data: paginatedData.map((l) => publicCoords(l as any)),
     total,
     page,
     limit,
@@ -81,31 +83,14 @@ function getMockListings(filters: ListingFiltersInput) {
 }
 
 export async function getListings(filters: ListingFiltersInput) {
-  const { type, status, city, sector, minPrice, maxPrice, minBedrooms, search, excludeId, page, limit } = filters
+  const { page, limit } = filters
 
   if (useMock()) {
     console.log('[Listings Service] Usando datos de prueba (mock)')
     return getMockListings(filters)
   }
 
-  const where: Prisma.ListingWhereInput = {
-    ...(excludeId && { id: { not: excludeId } }),
-    ...(type && { type }),
-    ...(status ? { status } : { status: 'ACTIVE' }), // Por defecto solo activos
-    ...(city && { city: { contains: city, mode: 'insensitive' as const } }),
-    ...(sector && { sector: { contains: sector, mode: 'insensitive' as const } }),
-    ...(minPrice !== undefined && { price: { gte: minPrice } }),
-    ...(maxPrice !== undefined && { price: { ...((where as any)?.price || {}), lte: maxPrice } }),
-    ...(minBedrooms !== undefined && { bedrooms: { gte: minBedrooms } }),
-    ...(search && {
-      OR: [
-        { title: { contains: search, mode: 'insensitive' as const } },
-        { description: { contains: search, mode: 'insensitive' as const } },
-        { city: { contains: search, mode: 'insensitive' as const } },
-        { sector: { contains: search, mode: 'insensitive' as const } },
-      ],
-    }),
-  }
+  const where = buildListingWhere(filters)
 
   try {
     const [data, total] = await Promise.all([
@@ -124,7 +109,7 @@ export async function getListings(filters: ListingFiltersInput) {
     ])
 
     return {
-      data,
+      data: data.map((l) => publicCoords(l)),
       total,
       page,
       limit,
@@ -218,8 +203,8 @@ export async function getListingsByOwner(ownerId: string) {
       orderBy: { createdAt: 'desc' },
     })
   } catch (error) {
-    console.error('[Listings Service] Error en db, fallback a mock para owner:', ownerId)
-    return mockListings.filter(l => l.ownerId === ownerId)
+    console.error('[Listings Service] Error en db al listar anuncios del dueño:', ownerId, error)
+    throw error
   }
 }
 

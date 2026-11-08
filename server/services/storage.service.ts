@@ -1,6 +1,7 @@
 // Service — Storage (Cloudinary)
 // Subida firmada vía su API REST directa (fetch + crypto nativo, sin SDK)
 import { createHash } from 'node:crypto'
+import { isListingAssetUrl } from '~~/server/lib/assetUrl'
 
 function signParams(params: Record<string, string | number>, apiSecret: string) {
   const toSign = Object.keys(params)
@@ -50,15 +51,19 @@ export async function uploadImage(file: Buffer, folder: string): Promise<{ url: 
  * Elimina una imagen de Cloudinary a partir de su URL (best-effort:
  * si falla, solo se loguea — el borrado en BD no debe bloquearse por esto).
  */
-export async function deleteImage(url: string): Promise<void> {
+export async function deleteImage(url: string, listingId: string): Promise<void> {
   const config = useRuntimeConfig()
   if (!config.cloudName || !config.cloudApiKey || !config.cloudApiSecret) return
+
+  // Solo se borra lo que está en la carpeta de este anuncio
+  if (!isListingAssetUrl(url, config.cloudName, listingId)) return
 
   // public_id = ruta tras /upload/vNNN/, sin extensión
   const m = url.match(/\/upload\/(?:v\d+\/)?(.+)\.[a-z0-9]+$/i)
   if (!m) return
 
   const publicId = decodeURIComponent(m[1])
+  if (!publicId.startsWith(`paseito/listings/${listingId}/`)) return
   const timestamp = Math.floor(Date.now() / 1000)
   const signature = signParams({ public_id: publicId, timestamp }, config.cloudApiSecret)
 

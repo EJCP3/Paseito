@@ -10,7 +10,7 @@ export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, 'id')!
   const photo = await prisma.photo.findUnique({
     where: { id },
-    select: { url: true, listing: { select: { ownerId: true } } },
+    select: { url: true, listingId: true, listing: { select: { ownerId: true } } },
   })
   if (!photo || photo.listing.ownerId !== session.user.id) {
     throw createError({ statusCode: 403, statusMessage: 'No tienes permiso para eliminar esta foto' })
@@ -18,7 +18,7 @@ export default defineEventHandler(async (event) => {
 
   await prisma.photo.delete({ where: { id } })
   // Best-effort: limpiar del storage (no bloquea la respuesta)
-  deleteImage(photo.url)
+  deleteImage(photo.url, photo.listingId)
 
   return { success: true }
 })

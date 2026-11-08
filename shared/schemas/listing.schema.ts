@@ -155,7 +155,6 @@ export const UpdateListingSchema = z.object({
   description: z.string().min(20).max(5000).optional(),
   price: z.number().positive().optional(),
   currency: z.string().optional(),
-  status: ListingStatusSchema.optional(),
   mode: ListingModeSchema.optional(),
   areaM2: z.number().positive().optional(),
   bedrooms: z.number().int().min(0).optional(),
@@ -212,7 +211,6 @@ export const UpdateListingSchema = z.object({
 // Schema para filtros de búsqueda
 export const ListingFiltersSchema = z.object({
   type: ListingTypeSchema.optional(),
-  status: ListingStatusSchema.optional(),
   city: z.string().optional(),
   sector: z.string().optional(),
   minPrice: z.number().min(0).optional(),
