@@ -36,6 +36,7 @@
   },
   "devDependencies": {
     "@nuxt/eslint": "^1.17.0",
+    "@nuxt/fonts": "^1.2.0",
     "@nuxt/image": "^2.0.0",
     "@tailwindcss/postcss": "^4.3.2",
     "@types/leaflet": "^1.9.21",

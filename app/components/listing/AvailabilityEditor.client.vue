@@ -5,6 +5,8 @@
  * los rangos ya guardados y, al hacer clic en un día, v-calendar abre su
  * popover nativo con las opciones "Editar fechas" / "Eliminar".
  */
+import { Calendar, DatePicker } from 'v-calendar'
+import 'v-calendar/style.css'
 import type { AvailabilityRange } from '~~/shared/types/listing'
 import { AvailabilityStatus, AvailabilityStatusLabels } from '~~/shared/types/enums'
 
@@ -116,7 +118,7 @@ async function removeRange(rangeId: string, hide?: () => void) {
     <div>
       <p class="text-sm font-semibold mb-2">Calendario de disponibilidad</p>
       <p v-if="loading" class="text-xs mb-2" style="color: var(--color-muted);">Cargando…</p>
-      <Calendar :attributes="attributes" expanded>
+      <Calendar :attributes="attributes as any" expanded>
         <template #day-popover="{ attributes: dayAttrs, hide }">
           <div class="p-2 space-y-3 min-w-[200px]">
             <div v-for="attr in dayAttrs" :key="attr.key" class="text-xs">

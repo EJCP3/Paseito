@@ -308,6 +308,7 @@ const isPublishing = ref(false)
 const publishError = ref('')
 const contactConsent = ref(false)
 const { sweep } = useGlimmSweep()
+onMounted(prefetchGlimm)
 
 async function publishListing() {
   publishError.value = ''
@@ -337,7 +338,7 @@ async function publishListing() {
 
     // 3. Éxito → recién ahora la animación de confirmación, que hace el swap de
     //    página en su punto medio (la franja enmascara el cambio de ruta).
-    sweep(async () => {
+    await sweep(async () => {
       await navigateTo(`/anuncio/${slug}`)
       await nextTick()
     })

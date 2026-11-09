@@ -7,6 +7,13 @@ const route = useRoute()
 // Tampoco tiene sentido dentro del detalle de un anuncio (visor 360°), ni en
 // cuenta/publicar (pantallas de formulario, no de exploración).
 const HIDDEN_TICKER_PREFIXES = ['/anuncio/', '/cuenta', '/publicar']
+// Modales de auth: se montan (y descargan su chunk) la primera vez que se abren
+// y siguen montados para no cortar su transición de salida.
+const { showLogin, showSignup } = useAuth()
+const loginLoaded = ref(showLogin.value)
+const signupLoaded = ref(showSignup.value)
+watch(showLogin, (v) => { if (v) loginLoaded.value = true }, { immediate: true })
+watch(showSignup, (v) => { if (v) signupLoaded.value = true }, { immediate: true })
 const showTicker = computed(() => !HIDDEN_TICKER_PREFIXES.some((prefix) => route.path.startsWith(prefix)))
 </script>
 
@@ -17,8 +24,8 @@ const showTicker = computed(() => !HIDDEN_TICKER_PREFIXES.some((prefix) => route
   <Transition enter-active-class="transition-opacity duration-300" enter-from-class="opacity-0" leave-active-class="transition-opacity duration-150" leave-to-class="opacity-0">
     <AnnouncementTicker v-if="showTicker" />
   </Transition>
-  <LoginModal />
-  <SignupModal />
+  <LazyLoginModal v-if="loginLoaded" />
+  <LazySignupModal v-if="signupLoaded" />
   <canvas id="glimm-canvas" class="fixed inset-0 w-screen h-screen z-[9999] pointer-events-none" />
 </template>
 

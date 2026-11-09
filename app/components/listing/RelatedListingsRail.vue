@@ -25,11 +25,13 @@ function coverImage(l: any) {
 const dockRef = ref<HTMLElement | null>(null)
 let dockIcons: NodeListOf<HTMLElement> | null = null
 let lastPointerY = -9999
+let raf = 0
 
 const updateDockIconsPosition = () => {
   if (!dockRef.value || !dockIcons || dockIcons.length === 0) return
   if (lastPointerY === -9999) return
 
+  const top = dockRef.value.getBoundingClientRect().top // un solo rect por frame
   const min = 88 // 72px height + 16px gap
   const max = 130 // max scale size
   const bound = min * Math.PI
@@ -37,7 +39,7 @@ const updateDockIconsPosition = () => {
   for (let i = 0; i < dockIcons.length; i++) {
     const icon = dockIcons[i]
     if (!icon) continue
-    const iconCenterY = dockRef.value.getBoundingClientRect().top - dockRef.value.scrollTop + icon.offsetTop + icon.offsetHeight / 2
+    const iconCenterY = top - dockRef.value.scrollTop + icon.offsetTop + icon.offsetHeight / 2
     const distance = iconCenterY - lastPointerY
 
     let y = 0
@@ -63,12 +65,14 @@ const handleDockMove = (event: MouseEvent) => {
   if (!dockIcons || dockIcons.length === 0) return
 
   lastPointerY = event.clientY
-  updateDockIconsPosition()
+  if (!raf) raf = requestAnimationFrame(() => { raf = 0; updateDockIconsPosition() })
 }
 
 const handleDockLeave = () => {
   if (!dockIcons) return
   lastPointerY = -9999
+  cancelAnimationFrame(raf)
+  raf = 0
   gsap.to(dockIcons, { duration: 0.3, scale: 1, y: 0 })
 }
 </script>
@@ -87,7 +91,7 @@ const handleDockLeave = () => {
         :to="`/anuncio/${l.slug}`"
         class="w-[72px] h-[72px] rounded-3xl cursor-pointer flex-shrink-0 p-3 thumbnail-item"
       >
-        <img :src="coverImage(l)" :alt="l.title" class="w-full h-full object-contain mix-blend-multiply" loading="lazy" >
+        <img :src="cld(coverImage(l), 'f_auto,q_auto,c_limit,w_200')" :alt="l.title" class="w-full h-full object-contain mix-blend-multiply" loading="lazy" width="72" height="72" >
       </NuxtLink>
     </div>
   </div>

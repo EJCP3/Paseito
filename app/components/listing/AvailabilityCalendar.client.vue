@@ -3,6 +3,8 @@
  * AvailabilityCalendar — Vista pública de solo lectura de la disponibilidad
  * de una villa. Pinta los días según sus AvailabilityRange; sin edición.
  */
+import { Calendar } from 'v-calendar'
+import 'v-calendar/style.css'
 import type { AvailabilityRange } from '~~/shared/types/listing'
 import { AvailabilityStatus, AvailabilityStatusLabels } from '~~/shared/types/enums'
 
@@ -31,6 +33,6 @@ const attributes = computed(() =>
       <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full" style="background:#9ca3af;" />Bloqueado</span>
       <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full" style="background:#ef4444;" />Ocupado</span>
     </div>
-    <Calendar :attributes="attributes" expanded :min-date="new Date()" />
+    <Calendar :attributes="attributes as any" expanded :min-date="new Date()" />
   </div>
 </template>

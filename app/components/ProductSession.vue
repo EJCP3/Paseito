@@ -13,20 +13,9 @@ const route = useRoute()
 // un segundo parpadeo justo cuando el sweep termina de revelar la página.
 const skipIntroReveal = route.hash === '#product-session'
 
-// Listados reales desde la base de datos (reemplaza el grid de ejemplo).
-// key + getCachedData: al volver del detalle de un anuncio, ProductSession
-// se remonta desde cero y sin esto refetchea de nuevo — grid en blanco ~1s
-// hasta que responde. Con esto reusa lo que ya trajo la primera vez.
-const { data: listingsResponse, pending: listingsPending } = useFetch('/api/listings', {
-  query: { limit: 48 },
-  key: 'home-listings',
-  getCachedData: (key, nuxtApp) => nuxtApp.payload.data[key] ?? nuxtApp.static.data[key],
-})
-const listings = computed(() => (listingsResponse.value as any)?.data ?? [])
-
 function coverImage(listing: any) {
-  if (listing.photos?.length) return listing.photos[0].thumbUrl || listing.photos[0].url
-  if (listing.scenes?.length) return listing.scenes[0].previewUrl
+  if (listing.photos?.length) return cld(listing.photos[0].thumbUrl || listing.photos[0].url, 'f_auto,q_auto,c_limit,w_600')
+  if (listing.scenes?.length) return cld(listing.scenes[0].previewUrl, 'f_auto,q_auto,c_limit,w_600')
   return '/images/portada1.webp'
 }
 
@@ -80,7 +69,7 @@ const openProductByImage = (_imageUrl: string) => {
   if (listings.value.length) {
     selectProduct(listings.value[0])
   } else {
-    router.push('/buscar')
+    goToSearch()
   }
 }
 
@@ -102,6 +91,11 @@ const filterMaxPrice = ref<number | null>(null)
 const cityOptions = locations.map((l) => l.city)
 const sectorOptions = computed(() => locations.find((l) => l.city === filterCity.value)?.sectors ?? [])
 watch(filterCity, () => { filterSector.value = '' })
+// v-model.number.lazy deja '' al vaciar el input: se normaliza a null.
+watch([filterMinPrice, filterMaxPrice], () => {
+  if ((filterMinPrice.value as unknown) === '') filterMinPrice.value = null
+  if ((filterMaxPrice.value as unknown) === '') filterMaxPrice.value = null
+})
 
 function resetSubFilters() {
   filterCity.value = ''
@@ -110,16 +104,38 @@ function resetSubFilters() {
   filterMaxPrice.value = null
 }
 
-const filteredProducts = computed(() => {
-  let list = listings.value
-  if (activeCategory.value !== 'ALL') list = list.filter((l: any) => l.type === activeCategory.value)
-  if (filterCity.value) list = list.filter((l: any) => l.city === filterCity.value)
-  if (filterSector.value) list = list.filter((l: any) => l.sector === filterSector.value)
-  if (filterMinPrice.value != null) list = list.filter((l: any) => Number(l.price) >= filterMinPrice.value!)
-  if (filterMaxPrice.value != null) list = list.filter((l: any) => Number(l.price) <= filterMaxPrice.value!)
-  return list
-})
+// Los filtros viajan al servidor (mismos parámetros que /buscar). El precio usa
+// v-model.lazy: se aplica al confirmar, no en cada tecla.
+const searchQuery = computed(() => ({
+  limit: 48,
+  ...(activeCategory.value !== 'ALL' && { type: activeCategory.value }),
+  ...(filterCity.value && { city: filterCity.value }),
+  ...(filterSector.value && { sector: filterSector.value }),
+  ...(filterMinPrice.value != null && { minPrice: filterMinPrice.value }),
+  ...(filterMaxPrice.value != null && { maxPrice: filterMaxPrice.value }),
+}))
+const hasFilters = computed(() => Object.keys(searchQuery.value).length > 1)
 
+// key (por query) + getCachedData: al volver del detalle ProductSession se
+// remonta con los filtros por defecto y reusa solo la respuesta de ESA query
+// (sin filtrar), así grid e isla quedan coherentes. Solo en la carga inicial.
+const { data: listingsResponse, pending: listingsPending } = useFetch('/api/listings', {
+  query: searchQuery,
+  key: computed(() => 'home-listings:' + JSON.stringify(searchQuery.value)),
+  getCachedData: (key, nuxtApp, ctx) =>
+    ctx.cause === 'initial' ? (nuxtApp.payload.data[key] ?? nuxtApp.static.data[key]) : undefined,
+})
+const listings = computed<any[]>(() => (listingsResponse.value as any)?.data ?? [])
+const filteredProducts = listings
+const totalResults = computed(() => (listingsResponse.value as any)?.total ?? listings.value.length)
+
+// Lleva los filtros activos a /buscar
+const goToSearch = () => {
+  const { limit: _l, ...query } = searchQuery.value
+  return router.push({ path: '/buscar', query: query as Record<string, string> })
+}
+
+const reducedMotion = import.meta.client && window.matchMedia('(prefers-reduced-motion: reduce)').matches
 const isFilterOpen = ref(false)
 const isMobileMenuOpen = ref(false)
 let filterTl: any = null
@@ -127,12 +143,10 @@ let filterTl: any = null
 const initFilterAnimation = () => {
   if (filterTl) filterTl.revert()
   
-  const expandedWidth = Math.min(window.innerWidth * 0.9, 300)
-  
   filterTl = gsap.timeline({ paused: true })
     .set('.menu-overlay', { pointerEvents: 'auto' })
     .set('.menu-panel', { autoAlpha: 1 })
-    .to('.island', { width: expandedWidth, duration: 0.8, ease: 'back.out(2)', easeReverse: 'power2.out' }, 0)
+    .to('.island', { x: 0, clipPath: 'inset(0px 0px 0px 0px round 25px)', duration: 0.8, ease: 'back.out(2)', easeReverse: 'power2.out' }, 0)
     .to('.island-logo', { opacity: 1, duration: 0.5, ease: 'back.out', easeReverse: 'power4.out' }, 0.12)
     .to('.bar-mid', { opacity: 0, duration: 0.15, ease: 'power2.in', easeReverse: true }, 0)
     .to('.bar-top', { attr: { x1: 3, y1: 3, x2: 13, y2: 13 }, duration: 0.28, ease: 'power3.inOut' }, 0)
@@ -219,10 +233,10 @@ onBeforeUnmount(() => {
 const toggleFilter = () => {
   isFilterOpen.value = !isFilterOpen.value
   if (isFilterOpen.value) {
-    filterTl.timeScale(1).play()
+    filterTl.timeScale(reducedMotion ? 50 : 1).play()
   } else {
     filterTl.eventCallback('onReverseComplete', () => gsap.set('.menu-overlay', { pointerEvents: 'none' }))
-    filterTl.timeScale(1.5).reverse()
+    filterTl.timeScale(reducedMotion ? 50 : 1.5).reverse()
   }
 }
 
@@ -263,7 +277,9 @@ defineExpose({
       <!-- Filtro (centrado en el viewport) -->
       <div class="absolute top-6 left-1/2 -translate-x-1/2 flex flex-col items-center">
         <!-- The island -->
-        <div ref="islandRef" class="island pointer-events-auto relative flex items-center justify-between p-1 bg-white border border-gray-200 rounded-full whitespace-nowrap overflow-hidden text-black transition-colors shadow-2xl" style="width: 50px; height: 50px;">
+        <!-- Isla a ancho final fijo; se abre con transform + clip-path (sin animar width). drop-shadow en el wrapper porque clip-path recorta box-shadow. -->
+        <div class="pointer-events-none" style="filter: drop-shadow(0 25px 25px rgb(0 0 0 / 0.15)); width: 300px;">
+        <div class="island pointer-events-auto relative flex items-center justify-between p-1 bg-white border border-gray-200 rounded-full whitespace-nowrap overflow-hidden text-black" style="width: 300px; height: 50px; transform: translateX(-125px); clip-path: inset(0px 0px 0px 250px round 25px);">
           <div class="island-logo-cont relative w-0 h-5 pointer-events-none flex items-center">
             <span class="island-logo absolute opacity-0 font-medium ml-4 text-[14px]" style="font-family: var(--font-body);">Filter: {{ activeCategoryLabel }}</span>
           </div>
@@ -272,6 +288,7 @@ defineExpose({
               <Icon id="menuIcon" name="menuMorph" width="16" height="16" viewBox="0 0 16 16" class="overflow-visible block" />
             </div>
           </button>
+        </div>
         </div>
 
         <!-- The Menu Panel -->
@@ -308,14 +325,17 @@ defineExpose({
               <div>
                 <label class="text-[11px] font-bold uppercase tracking-wider text-gray-400 block mb-1">Precio</label>
                 <div class="flex items-center gap-2">
-                  <input v-model.number="filterMinPrice" type="number" placeholder="Mín." class="w-full text-sm px-3 py-2 rounded-full border border-gray-200 focus:outline-none focus:border-black" >
+                  <input v-model.number.lazy="filterMinPrice" type="number" placeholder="Mín." class="w-full text-sm px-3 py-2 rounded-full border border-gray-200 focus:outline-none focus:border-black" >
                   <span class="text-gray-300">—</span>
-                  <input v-model.number="filterMaxPrice" type="number" placeholder="Máx." class="w-full text-sm px-3 py-2 rounded-full border border-gray-200 focus:outline-none focus:border-black" >
+                  <input v-model.number.lazy="filterMaxPrice" type="number" placeholder="Máx." class="w-full text-sm px-3 py-2 rounded-full border border-gray-200 focus:outline-none focus:border-black" >
                 </div>
               </div>
 
               <button type="button" class="btn btn-neon w-full mt-1" @click="closeFilter">
-                Ver {{ filteredProducts.length }} resultado{{ filteredProducts.length === 1 ? '' : 's' }}
+                Ver {{ totalResults }} resultado{{ totalResults === 1 ? '' : 's' }}
+              </button>
+              <button type="button" class="text-xs font-semibold underline text-gray-500 hover:text-black" @click="goToSearch">
+                Búsqueda avanzada
               </button>
             </div>
           </div>
@@ -432,8 +452,8 @@ defineExpose({
 
         <!-- Empty state -->
         <div v-else-if="filteredProducts.length === 0" class="w-full py-24 text-center text-gray-500">
-          <p class="text-lg font-medium" style="font-family: var(--font-body);">Aún no hay publicaciones</p>
-          <p class="text-sm mt-1">Sé el primero en publicar un anuncio.</p>
+          <p class="text-lg font-medium" style="font-family: var(--font-body);">{{ hasFilters ? 'Sin resultados con estos filtros' : 'Aún no hay publicaciones' }}</p>
+          <p class="text-sm mt-1">{{ hasFilters ? 'Prueba con otros filtros.' : 'Sé el primero en publicar un anuncio.' }}</p>
         </div>
 
         <!-- CSS Grid for Products -->
@@ -444,7 +464,7 @@ defineExpose({
             class="product-card invisible opacity-0 bg-[#e3e3df] rounded-2xl lg:rounded-[32px] aspect-square flex items-center justify-center cursor-pointer relative group"
             @click="selectProduct(p)"
           >
-            <img :src="coverImage(p)" :alt="p.title" class="w-[80%] h-[80%] object-contain mix-blend-multiply" >
+            <img :src="coverImage(p)" :alt="p.title" width="400" height="400" loading="lazy" decoding="async" class="w-[80%] h-[80%] object-contain mix-blend-multiply" >
 
             <!-- Hover Info -->
             <div class="absolute bottom-8 left-8 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">

@@ -189,15 +189,20 @@ export const UpdateListingSchema = z.object({
 // Schema para filtros de búsqueda
 export const ListingFiltersSchema = z.object({
   type: ListingTypeSchema.optional(),
+  mode: ListingModeSchema.optional(),
   city: z.string().optional(),
   sector: z.string().optional(),
   minPrice: z.number().min(0).optional(),
   maxPrice: z.number().min(0).optional(),
   minBedrooms: z.number().int().min(0).optional(),
+  minBathrooms: z.number().min(0).optional(),
+  minArea: z.number().min(0).optional(),
+  maxArea: z.number().min(0).optional(),
   search: z.string().max(200).optional(),
+  sort: z.enum(['recent', 'price_asc', 'price_desc']).optional(),
   excludeId: z.string().optional(), // Para "otros anuncios" (nunca el actual)
   page: z.number().int().min(1).default(1),
-  limit: z.number().int().min(1).max(50).default(12),
+  limit: z.number().int().min(1).max(48).default(12),
 })
 
 export type UpdateListingInput = z.infer<typeof UpdateListingSchema>
