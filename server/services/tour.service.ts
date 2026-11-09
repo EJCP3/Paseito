@@ -15,6 +15,10 @@ export async function createScene(data: CreateSceneInput) {
     throw createError({ statusCode: 404, statusMessage: 'Anuncio no encontrado' })
   }
 
+  if (await prisma.scene.count({ where: { listingId: data.listingId } }) >= 20) {
+    throw createError({ statusCode: 409, statusMessage: 'Máximo 20 escenas por anuncio' })
+  }
+
   return prisma.scene.create({ data })
 }
 

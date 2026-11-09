@@ -98,7 +98,7 @@ export async function getListingBySlug(slug: string) {
         availability: { orderBy: { startDate: 'asc' } },
         owner: {
           select: {
-            id: true, name: true, phone: true, image: true, verificationTier: true,
+            id: true, name: true, image: true, verificationTier: true,
             _count: { select: { listings: { where: { status: 'ACTIVE', deletedAt: null } } } },
           },
         },
@@ -129,7 +129,7 @@ export async function getListingById(id: string) {
         },
         nearbyPlaces: { orderBy: { distanceM: 'asc' } },
         availability: { orderBy: { startDate: 'asc' } },
-        owner: { select: { id: true, name: true, phone: true } },
+        owner: { select: { id: true, name: true } },
       },
     })
   } catch (error) {
@@ -282,6 +282,9 @@ export async function changeListingStatus(id: string, ownerId: string, action: '
  */
 export async function addPhoto(listingId: string, ownerId: string, data: { url: string; thumbUrl: string; name: string | null; order: number }) {
   await requireOwnedListing(listingId, ownerId)
+  if (await prisma.photo.count({ where: { listingId } }) >= 30) {
+    throw createError({ statusCode: 409, statusMessage: 'Máximo 30 fotos por anuncio' })
+  }
 
   return prisma.photo.create({
     data: { listingId, url: data.url, thumbUrl: data.thumbUrl, name: data.name, order: data.order },

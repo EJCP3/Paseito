@@ -76,6 +76,11 @@ describe('checkImage', () => {
       expect(r).toMatchObject({ ok: false, status: 422 })
     })
 
+    it('rechaza panorámica por encima de 8192×4096 con 422', async () => {
+      const r = await checkImage(await make(8400, 4200).jpeg().toBuffer(), 'panorama')
+      expect(r).toMatchObject({ ok: false, status: 422 })
+    })
+
     it('rechaza ratio por debajo de 1.8 con 422', async () => {
       // 1.75
       const r = await checkImage(await make(7000, 4000).jpeg().toBuffer(), 'panorama')

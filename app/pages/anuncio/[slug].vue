@@ -94,14 +94,6 @@ const publishedDate = computed(() => {
   return new Intl.DateTimeFormat('es-DO', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(listing.value.createdAt))
 })
 
-const whatsappUrl = computed(() => {
-  const phone = listing.value?.owner?.phone || ''
-  const message = encodeURIComponent(
-    `¡Hola! Me interesa "${listing.value?.title}" en Paseito. ¿Podemos hablar?`
-  )
-  return `https://wa.me/${phone.replace(/\D/g, '')}?text=${message}`
-})
-
 // Redes/contactos que el dueño eligió mostrar (reemplaza el botón fijo de WhatsApp)
 const contactMeta: Record<string, string> = {
   whatsapp: 'WhatsApp', instagram: 'Instagram', facebook: 'Facebook', tiktok: 'TikTok', website: 'Sitio web',
@@ -246,9 +238,6 @@ function backToHome() {
                 {{ c.label }}
               </a>
             </template>
-            <a v-else-if="listing.owner?.phone" id="listing-whatsapp-btn" :href="whatsappUrl" target="_blank" class="btn btn-neon btn-sm" @click="trackContact('whatsapp')">
-              Contactar por WhatsApp
-            </a>
             <button
               id="listing-save-btn"
               class="btn btn-sm rounded-full"
@@ -408,9 +397,6 @@ function backToHome() {
                 </a>
               </div>
             </template>
-            <a v-else-if="listing.owner?.phone" :href="whatsappUrl" target="_blank" class="btn btn-neon w-full" @click="trackContact('whatsapp')">
-              Contactar por WhatsApp
-            </a>
             <button v-if="canReport" type="button" class="text-xs underline py-3 self-start" style="color: var(--color-muted);" @click="showReport = true">
               Reportar anuncio
             </button>

@@ -49,7 +49,8 @@ const mapCenter = computed(() => {
 })
 
 const whatsappUrl = computed(() => {
-  const phone = props.listing.owner?.phone || ''
+  const phone = props.listing.contacts?.find((c) => c.type === 'whatsapp')?.value || ''
+  if (!phone) return ''
   const message = encodeURIComponent(
     `Hola, me interesa el anuncio "${props.listing.title}" en Paseito. ¿Podemos coordinar una visita?`
   )
@@ -199,7 +200,7 @@ async function copyListingLink() {
                   {{ linkCopied ? 'Copiado' : 'Copiar enlace' }}
                 </button>
                 <a
-                  v-if="listing.owner?.phone"
+                  v-if="whatsappUrl"
                   :href="whatsappUrl"
                   target="_blank"
                   class="btn btn-sm btn-neon"

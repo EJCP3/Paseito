@@ -7,7 +7,7 @@ export default defineEventHandler(async (event) => {
   await requireUser(event)
 
   const body = await readBody(event)
-  const { address } = GeocodeSchema.parse(body)
+  const { address } = parseOr400(GeocodeSchema, body)
 
   return geocodeAddress(address)
 })

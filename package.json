@@ -14,25 +14,24 @@
     "postinstall": "prisma generate && nuxt prepare"
   },
   "dependencies": {
-    "@better-auth/infra": "^0.3.6",
     "@photo-sphere-viewer/autorotate-plugin": "5.14.3",
     "@photo-sphere-viewer/core": "^5.14.3",
     "@photo-sphere-viewer/markers-plugin": "^5.14.3",
     "@photo-sphere-viewer/virtual-tour-plugin": "^5.14.3",
     "@pinia/nuxt": "^0.11.3",
     "@prisma/client": "^6.2.1",
-    "better-auth": "^1.6.23",
+    "better-auth": "^1.7.18",
     "glimm": "^0.3.0",
     "gsap": "^3.15.0",
     "leaflet": "^1.9.4",
-    "nuxt": "^4.4.8",
+    "nuxt": "^4.6.4",
     "pinia": "^3.0.4",
-    "sharp": "^0.35.3",
+    "sharp": "^0.35.5",
     "three": "0.184.0",
     "v-calendar": "^3.1.2",
-    "vue": "^3.5.39",
+    "vue": "^3.5.45",
     "vue-router": "^5.1.0",
-    "zod": "^4.4.3"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@nuxt/eslint": "^1.17.0",

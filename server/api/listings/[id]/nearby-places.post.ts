@@ -11,7 +11,7 @@ export default defineEventHandler(async (event) => {
   const session = await requireUser(event)
 
   const body = await readBody(event)
-  const { lat, lng, excludeNames } = NearbyPlacesQuerySchema.parse(body)
+  const { lat, lng, excludeNames } = parseOr400(NearbyPlacesQuerySchema, body)
 
   return detectAndSaveNearbyPlaces(id, session.user.id, lat, lng, excludeNames)
 })

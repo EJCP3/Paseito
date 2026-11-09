@@ -40,7 +40,7 @@ function checkCoordinates(data: { latitude?: number; longitude?: number }, ctx: 
 export const listingBaseSchema = z.object({
   title: z.string().min(5, 'El título debe tener al menos 5 caracteres').max(120),
   description: z.string().min(20, 'La descripción debe tener al menos 20 caracteres').max(5000),
-  currency: z.string().default('USD'),
+  currency: z.enum(['USD', 'DOP', 'EUR']).default('USD'),
 
   city: z.string().max(100),
   sector: z.string().max(100).optional(),
@@ -136,7 +136,7 @@ export const UpdateListingSchema = z.object({
   title: z.string().min(5).max(120).optional(),
   description: z.string().min(20).max(5000).optional(),
   price: z.number().positive().optional(),
-  currency: z.string().optional(),
+  currency: z.enum(['USD', 'DOP', 'EUR']).optional(),
   mode: ListingModeSchema.optional(),
   areaM2: z.number().positive().nullable().optional(),
   bedrooms: z.number().int().min(0).nullable().optional(),

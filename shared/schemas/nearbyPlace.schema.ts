@@ -23,7 +23,7 @@ export const NearbyPlaceResultSchema = z.object({
 export const NearbyPlacesQuerySchema = z.object({
   lat: z.number().min(-90).max(90),
   lng: z.number().min(-180).max(180),
-  excludeNames: z.array(z.string()).max(30).optional(),
+  excludeNames: z.array(z.string().max(120)).max(30).optional(),
 })
 
 export type NearbyPlaceCategory = z.infer<typeof NearbyPlaceCategorySchema>

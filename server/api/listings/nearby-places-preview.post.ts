@@ -8,7 +8,7 @@ export default defineEventHandler(async (event) => {
   await requireUser(event)
 
   const body = await readBody(event)
-  const { lat, lng, excludeNames } = NearbyPlacesQuerySchema.parse(body)
+  const { lat, lng, excludeNames } = parseOr400(NearbyPlacesQuerySchema, body)
 
   // Si Overpass está caído tras probar todos los mirrors, searchNearbyPlaces
   // lanza; devolvemos 502 para que el front muestre "no se pudieron cargar

@@ -3,7 +3,6 @@
 import { betterAuth, APIError } from 'better-auth'
 import { emailOTP } from 'better-auth/plugins'
 import { prismaAdapter } from 'better-auth/adapters/prisma'
-import { dash } from '@better-auth/infra'
 import { prisma } from './db'
 import { sendEmail } from './email'
 import { verificationEmailHtml, otpEmailHtml } from './emailTemplates'
@@ -12,6 +11,10 @@ export const auth = betterAuth({
   database: prismaAdapter(prisma, { provider: 'postgresql' }),
   secret: process.env.BETTER_AUTH_SECRET,
   baseURL: process.env.APP_URL || 'http://localhost:3000',
+  // Solo se lee la cabecera que fija la plataforma (IP_HEADER); vacío = IP del socket. Nunca X-Forwarded-For.
+  advanced: {
+    ipAddress: { ipAddressHeaders: process.env.IP_HEADER ? [process.env.IP_HEADER] : [] },
+  },
   emailAndPassword: {
     enabled: true,
     revokeSessionsOnPasswordReset: true,
@@ -19,20 +22,22 @@ export const auth = betterAuth({
   databaseHooks: {
     user: {
       // Todo registro (email o Google) pasa por el checkbox de términos del modal (RQ-LEGAL-01)
+      update: {
+        before: async (data) => ({ data: typeof data.name === 'string' ? { ...data, name: data.name.trim().slice(0, 80) } : data }),
+      },
       create: {
         before: async (user, ctx) => {
           // Registro por API directa sin consentimiento: rechazado. Google va por requestSignUp.
           if (ctx?.path === '/sign-up/email' && ctx.body?.acceptTerms !== true) {
             throw APIError.from('BAD_REQUEST', { message: 'Debes aceptar los Términos y la Política de privacidad', code: 'TERMS_REQUIRED' })
           }
-          return { data: { ...user, termsAcceptedAt: new Date() } }
+          return { data: { ...user, name: user.name.trim().slice(0, 80), termsAcceptedAt: new Date() } }
         },
       },
     },
     session: {
       create: {
-        // Fuente de verdad única de la suspensión: nuestro campo `suspended` (no `banned` del
-        // plugin dash()). Cuentas suspendidas o borradas no pueden abrir sesión por ningún método.
+        // Fuente de verdad única de la suspensión: nuestro campo `suspended` (no `banned`). Cuentas suspendidas o borradas no pueden abrir sesión por ningún método.
         before: async (session) => {
           const user = await prisma.user.findUnique({
             where: { id: session.userId },
@@ -78,7 +83,6 @@ export const auth = betterAuth({
     },
   },
   plugins: [
-    dash(),
     // OTP por correo — usado como paso de verificación antes de cambiar la contraseña
     emailOTP({
       otpLength: 6,
