@@ -22,6 +22,9 @@ export async function checkImage(buf: Buffer, kind: ImageKind): Promise<ImageChe
     return { ok: false, status: 422, message: 'La imagen es demasiado grande (máximo 16384 px por lado)' }
   }
   if (kind === 'panorama') {
+    if (width > 8192 || height > 4096) {
+      return { ok: false, status: 422, message: 'La panorámica es demasiado grande (máximo 8192×4096 px)' }
+    }
     const ratio = width / height
     if (ratio < 1.8 || ratio > 2.2) {
       return { ok: false, status: 422, message: 'La panorámica debe tener proporción 2:1 (entre 1.8 y 2.2)' }

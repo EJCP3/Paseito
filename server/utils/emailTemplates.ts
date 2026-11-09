@@ -1,6 +1,7 @@
 // Plantillas de correo — HTML con estilos inline y layout de tablas
 // (máxima compatibilidad con Gmail/Outlook, que ignoran <style> externos y CSS moderno)
 
+import { escapeHtml } from '~~/shared/utils/escapeHtml'
 const NEON = '#C1FF00'
 const INK = '#0D0D0D'
 const MUTED = '#666666'
@@ -67,13 +68,13 @@ export function verificationEmailHtml({ name, url }: { name: string; url: string
   const body = `
     <h1 style="margin:0 0 12px 0; font-size:22px; font-weight:800; color:${INK};">Confirma tu correo</h1>
     <p style="margin:0 0 24px 0; font-size:15px; line-height:1.6; color:#333333;">
-      Hola ${name}, gracias por unirte a Paseito. Confirma tu correo para activar tu cuenta y poder publicar anuncios.
+      Hola ${escapeHtml(name)}, gracias por unirte a Paseito. Confirma tu correo para activar tu cuenta y poder publicar anuncios.
     </p>
 
     <table role="presentation" cellpadding="0" cellspacing="0">
       <tr>
         <td style="background-color:${NEON}; border-radius:999px;">
-          <a href="${url}" target="_blank" style="display:inline-block; padding:14px 28px; font-size:15px; font-weight:700; color:${INK}; text-decoration:none;">
+          <a href="${escapeHtml(url)}" target="_blank" style="display:inline-block; padding:14px 28px; font-size:15px; font-weight:700; color:${INK}; text-decoration:none;">
             Confirmar correo
           </a>
         </td>
@@ -82,7 +83,7 @@ export function verificationEmailHtml({ name, url }: { name: string; url: string
 
     <p style="margin:24px 0 0 0; font-size:13px; color:${MUTED}; line-height:1.5;">
       Si el botón no funciona, copia y pega este enlace en tu navegador:<br />
-      <a href="${url}" style="color:#171717; word-break:break-all;">${url}</a>
+      <a href="${escapeHtml(url)}" style="color:#171717; word-break:break-all;">${escapeHtml(url)}</a>
     </p>
   `
   return wrapper(body, 'Confirma tu correo para activar tu cuenta en Paseito')
@@ -99,7 +100,7 @@ export function otpEmailHtml({ otp }: { otp: string }) {
       <tr>
         <td align="center" style="background-color:${SURFACE}; border:1px solid ${BORDER}; border-radius:16px; padding:20px;">
           <span style="font-size:32px; font-weight:800; letter-spacing:10px; color:${INK}; font-family:'Courier New', monospace;">
-            ${otp}
+            ${escapeHtml(otp)}
           </span>
         </td>
       </tr>

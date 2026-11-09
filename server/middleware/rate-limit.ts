@@ -3,8 +3,9 @@
 import { hit, type RateStore } from '../lib/rateLimit'
 
 const MIN = 60_000
-const rules: { id: string; test: (p: string, m: string) => boolean; limit: number; windowMs: number }[] = [
-  { id: 'uploads', test: (p) => p.startsWith('/api/uploads'), limit: 60, windowMs: 10 * MIN },
+const rules: { id: string; test: (p: string, m: string) => boolean; limit: number; windowMs: number; anon?: boolean }[] = [
+  { id: 'uploads', test: (p) => p.startsWith('/api/uploads'), limit: 20, windowMs: 10 * MIN },
+  { id: 'search', test: (p, m) => m === 'GET' && /^\/api\/listings\/?$/.test(p), limit: 60, windowMs: MIN, anon: true },
   { id: 'scenes', test: (p, m) => m === 'POST' && /^\/api\/tours\/scenes\/?$/.test(p), limit: 30, windowMs: 10 * MIN },
   { id: 'geocode', test: (p) => p.startsWith('/api/geocode'), limit: 20, windowMs: MIN },
   { id: 'nearby', test: (p) => /^\/api\/listings\/(?:[^/]+\/)?nearby-places/.test(p), limit: 10, windowMs: MIN },
@@ -17,13 +18,15 @@ const WRITE = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
 const store: RateStore = new Map()
 
 export default defineEventHandler(async (event) => {
-  if (!WRITE.has(event.method)) return
   const path = getRequestURL(event).pathname
   const rule = rules.find((r) => r.test(path, event.method))
-  if (!rule) return
+  if (!rule || (!rule.anon && !WRITE.has(event.method))) return
 
-  const session = await auth.api.getSession({ headers: event.headers }).catch(() => null)
+  // Reglas `anon` (lecturas públicas): por IP, sin consultar la sesión
+  const session = rule.anon ? null : await auth.api.getSession({ headers: event.headers }).catch(() => null)
   const who = session?.user?.id ?? clientIp(event)
+  // Llamadas internas de SSR (sin socket) no tienen IP: no compartir un solo cubo
+  if (rule.anon && who === 'unknown') return
   const now = Date.now()
 
   if (store.size > 10_000) for (const [k, v] of store) if (now >= v.resetAt) store.delete(k)

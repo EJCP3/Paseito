@@ -94,6 +94,24 @@ export default defineNuxtConfig({
         'Permissions-Policy': 'camera=(), microphone=(), geolocation=(self)',
         ...(process.env.NODE_ENV === 'production' && {
           'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+          // Report-Only: pasar a 'Content-Security-Policy' tras unos días sin violaciones en consola
+          'Content-Security-Policy-Report-Only': [
+            "default-src 'self'",
+            "script-src 'self' 'unsafe-inline'",
+            "style-src 'self' 'unsafe-inline'",
+            "img-src 'self' data: blob: https://res.cloudinary.com https://tile.openstreetmap.org https://*.tile.openstreetmap.org https://lh3.googleusercontent.com",
+            "font-src 'self' data:",
+            "connect-src 'self' https://res.cloudinary.com",
+            "worker-src 'self' blob:",
+            "media-src 'self' blob:",
+            "object-src 'none'",
+            "base-uri 'self'",
+            "form-action 'self' https://accounts.google.com",
+            "frame-ancestors 'none'",
+            "frame-src 'none'",
+            'upgrade-insecure-requests',
+          ].join('; '),
+          'Cross-Origin-Opener-Policy': 'same-origin-allow-popups',
         }),
       },
     },
@@ -111,7 +129,6 @@ export default defineNuxtConfig({
     optimizeDeps: {
       include: [
         'better-auth/vue',
-        '@better-auth/infra/client',
         'zod',
         'gsap',
         'gsap/ScrollTrigger',

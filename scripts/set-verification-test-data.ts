@@ -3,6 +3,11 @@
 // Correr: node --env-file=.env --experimental-strip-types scripts/set-verification-test-data.ts
 import { PrismaClient } from '@prisma/client'
 
+if (process.env.NODE_ENV === 'production') {
+  console.error('Abortado: este script modifica usuarios reales y no se corre en producción.')
+  process.exit(1)
+}
+
 const prisma = new PrismaClient()
 
 async function main() {

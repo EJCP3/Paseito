@@ -7,7 +7,7 @@ export default defineEventHandler(async (event) => {
   await requireUser(event)
 
   const body = await readBody(event)
-  const { url } = GoogleMapsLinkSchema.parse(body)
+  const { url } = parseOr400(GoogleMapsLinkSchema, body)
 
   const coords = await resolveGoogleMapsLink(url)
   if (!coords) {

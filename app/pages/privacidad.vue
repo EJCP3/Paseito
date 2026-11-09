@@ -6,7 +6,6 @@ const providers = [
   { name: 'Cloudinary', use: 'Almacenamiento y entrega de fotos y panorámicas 360°.' },
   { name: 'Resend', use: 'Envío de correos (verificación de correo y códigos de seguridad).' },
   { name: 'Google', use: 'Inicio de sesión opcional con tu cuenta de Google.' },
-  { name: 'Better Auth / @better-auth/infra (dash)', use: 'Autenticación y registro de eventos de autenticación (inicios de sesión, cambios de cuenta).' },
   { name: 'OpenStreetMap / Overpass', use: 'Mapas y detección de lugares cercanos a partir de la ubicación del anuncio.' },
 ]
 </script>

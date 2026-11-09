@@ -1,6 +1,7 @@
 // POST /api/listings/:id/events — Evento de analítica anónimo (sesión opcional). Rate limit en middleware.
 // No guarda IP ni usuario: solo ListingEvent { listingId, type, value }. El dedupe usa un hash
 // con sal diaria que vive en memoria. sendBeacon puede mandar text/plain: se parsea el string.
+import { createHash } from 'node:crypto'
 import type { H3Event } from 'h3'
 import { EventInputSchema } from '~~/shared/schemas/event.schema'
 import { CONTACT_CHANNELS, dailySalt, dedupeKey, dedupeWindowMs, normalizeIp, shouldRecord, visitorHash } from '~~/server/lib/analytics'
@@ -18,6 +19,7 @@ function sameOrigin(event: H3Event) {
   const site = getRequestHeader(event, 'sec-fetch-site')
   if (site && site !== 'same-origin') return false
   const origin = getRequestHeader(event, 'origin')
+  if (!site && !origin) return false
   if (origin) {
     try { return new URL(origin).host === getRequestHost(event) } catch { return false }
   }
@@ -49,9 +51,10 @@ export default defineEventHandler(async (event) => {
   const windowMs = dedupeWindowMs(body.type, channel)
   if (windowMs > 0) {
     // Sin secreto en producción no hay sal fiable: no se registra (y se avisa una vez)
-    const secret = process.env.BETTER_AUTH_SECRET || (process.env.NODE_ENV === 'production' ? '' : 'dev')
+    const base = process.env.BETTER_AUTH_SECRET || (process.env.NODE_ENV === 'production' ? '' : 'dev')
+    const secret = process.env.ANALYTICS_SALT || (base && createHash('sha256').update('analytics:' + base).digest('hex'))
     if (!secret) {
-      if (!warnedNoSecret) { warnedNoSecret = true; console.warn('[analytics] BETTER_AUTH_SECRET no definido: no se registran eventos') }
+      if (!warnedNoSecret) { warnedNoSecret = true; console.warn('[analytics] ANALYTICS_SALT/BETTER_AUTH_SECRET no definido: no se registran eventos') }
       return null
     }
     const now = Date.now()
@@ -61,7 +64,7 @@ export default defineEventHandler(async (event) => {
       if (seen.size > MAX_ENTRIES) seen.clear()
     }
     // Solo la IP normalizada (sin UA): cambiar de user agent no rompe el dedupe
-    const visitor = visitorHash(normalizeIp(clientIp(event)), '', dailySalt(new Date(now), 'analytics:' + secret))
+    const visitor = visitorHash(normalizeIp(clientIp(event)), '', dailySalt(new Date(now), secret))
     if (!shouldRecord(seen, dedupeKey(visitor, id, body.type, channel), now, windowMs)) return null
   }
 
