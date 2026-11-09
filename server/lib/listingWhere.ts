@@ -11,7 +11,8 @@ export function buildListingWhere(f: Partial<ListingFiltersInput>): Prisma.Listi
   return {
     status: 'ACTIVE',
     ...(excludeId && { id: { not: excludeId } }),
-    ...(type && { type }),
+    // ponytail: el enum de Prisma aún tiene VEHICLE (se quita en la migración de Fase 2)
+    type: type ?? { in: ['APARTMENT', 'HOUSE', 'VILLA'] },
     ...(city && { city: { contains: city, mode: 'insensitive' as const } }),
     ...(sector && { sector: { contains: sector, mode: 'insensitive' as const } }),
     ...(Object.keys(price).length > 0 && { price }),

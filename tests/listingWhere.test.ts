@@ -51,7 +51,7 @@ describe('buildListingWhere', () => {
     const where = buildListingWhere({ city: 'Santiago' } as any)
     expect(where.city).toBeDefined()
     expect(where.sector).toBeUndefined()
-    expect(where.type).toBeUndefined()
+    expect(where.type).toEqual({ in: ['APARTMENT', 'HOUSE', 'VILLA'] })
   })
 
   it('excludeId excluye ese id', () => {

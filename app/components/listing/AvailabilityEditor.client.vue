@@ -120,7 +120,7 @@ async function removeRange(rangeId: string, hide?: () => void) {
         <template #day-popover="{ attributes: dayAttrs, hide }">
           <div class="p-2 space-y-3 min-w-[200px]">
             <div v-for="attr in dayAttrs" :key="attr.key" class="text-xs">
-              <p class="font-semibold mb-1">{{ AvailabilityStatusLabels[attr.customData.status] }}</p>
+              <p class="font-semibold mb-1">{{ AvailabilityStatusLabels[attr.customData.status as AvailabilityStatus] }}</p>
               <p class="mb-2" style="color: var(--color-muted);">
                 {{ new Date(attr.customData.startDate).toLocaleDateString() }} — {{ new Date(attr.customData.endDate).toLocaleDateString() }}
               </p>

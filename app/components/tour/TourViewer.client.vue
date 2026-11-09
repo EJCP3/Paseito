@@ -113,7 +113,7 @@ onMounted(async () => {
   })
 
   // Escuchar cambios de escena
-  const virtualTour = viewer.getPlugin(VirtualTourPlugin)
+  const virtualTour = viewer.getPlugin<VirtualTourPlugin>(VirtualTourPlugin)
   if (virtualTour) {
     virtualTour.addEventListener('node-changed', (e: any) => {
       const node = props.scenes.find((s) => s.id === e.node?.id)
@@ -145,7 +145,7 @@ onMounted(async () => {
 // Navegar a escena programáticamente
 function goToScene(sceneId: string) {
   if (!viewer) return
-  const virtualTour = viewer.getPlugin(VirtualTourPlugin)
+  const virtualTour = viewer.getPlugin<VirtualTourPlugin>(VirtualTourPlugin)
   if (virtualTour) {
     virtualTour.setCurrentNode(sceneId)
   }
@@ -214,10 +214,10 @@ defineExpose({ goToScene, toggleFullscreen })
 
       <!-- Botón pantalla completa (pill con texto, arriba derecha) -->
       <button
-        class="absolute top-3 right-3 z-10 flex items-center gap-1.5 bg-white/90 text-black text-sm font-semibold px-3.5 py-2 rounded-full shadow-sm hover:bg-white transition-colors cursor-pointer"
-        @click="toggleFullscreen"
-        :aria-label="isFullscreen ? 'Salir de pantalla completa' : 'Pantalla completa'"
         id="viewer-fullscreen-btn"
+        class="absolute top-3 right-3 z-10 flex items-center gap-1.5 bg-white/90 text-black text-sm font-semibold px-3.5 py-2 rounded-full shadow-sm hover:bg-white transition-colors cursor-pointer"
+        :aria-label="isFullscreen ? 'Salir de pantalla completa' : 'Pantalla completa'"
+        @click="toggleFullscreen"
       >
         <Icon :name="isFullscreen ? 'collapse' : 'expand'" class="w-4 h-4" />
         <span>{{ isFullscreen ? 'Salir' : 'Pantalla completa' }}</span>

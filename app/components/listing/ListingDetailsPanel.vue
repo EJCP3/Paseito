@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * ListingDetailsPanel — Acordeón de secciones (mismo patrón visual que /producto)
+ * ListingDetailsPanel — Acordeón de secciones
  * Tres filas: Descripción, Características, Ubicación y vendedor
  */
 import { ListingTypeLabels } from '~~/shared/types/enums'
@@ -25,13 +25,6 @@ const specs = computed(() => {
     if (props.listing.bedrooms !== null && props.listing.bedrooms !== undefined) s.push({ label: 'Habitaciones', value: String(props.listing.bedrooms) })
     if (props.listing.bathrooms !== null && props.listing.bathrooms !== undefined) s.push({ label: 'Baños', value: String(props.listing.bathrooms) })
     if (props.listing.parking !== null && props.listing.parking !== undefined) s.push({ label: 'Estacionamientos', value: String(props.listing.parking) })
-  }
-
-  if (props.listing.type === 'VEHICLE') {
-    if (props.listing.brand) s.push({ label: 'Marca', value: props.listing.brand })
-    if (props.listing.model) s.push({ label: 'Modelo', value: props.listing.model })
-    if (props.listing.year) s.push({ label: 'Año', value: String(props.listing.year) })
-    if (props.listing.mileageKm) s.push({ label: 'Kilometraje', value: `${props.listing.mileageKm.toLocaleString()} km` })
   }
 
   return s
@@ -77,10 +70,10 @@ async function copyListingLink() {
 </script>
 
 <template>
-  <div class="flex flex-col gap-3" id="listing-details-panel">
+  <div id="listing-details-panel" class="flex flex-col gap-3">
     <!-- Descripción general -->
     <div class="bg-[#e3e3df] rounded-[24px] overflow-hidden transition-all duration-300">
-      <div @click="toggleAccordion('descripcion')" class="px-6 py-4 flex items-center justify-between cursor-pointer hover:bg-gray-300/50 transition-colors">
+      <div class="px-6 py-4 flex items-center justify-between cursor-pointer hover:bg-gray-300/50 transition-colors" @click="toggleAccordion('descripcion')">
         <span class="text-[17px] font-medium" style="font-family: var(--font-body);">Descripción general</span>
       </div>
       <div class="grid transition-[grid-template-rows,opacity] duration-300 ease-in-out" :class="activeAccordion === 'descripcion' ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'">
@@ -96,7 +89,7 @@ async function copyListingLink() {
 
     <!-- Características y Amenidades -->
     <div v-if="specs.length" class="bg-[#e3e3df] rounded-[24px] overflow-hidden transition-all duration-300">
-      <div @click="toggleAccordion('caracteristicas')" class="px-6 py-4 flex items-center justify-between cursor-pointer hover:bg-gray-300/50 transition-colors">
+      <div class="px-6 py-4 flex items-center justify-between cursor-pointer hover:bg-gray-300/50 transition-colors" @click="toggleAccordion('caracteristicas')">
         <span class="text-[17px] font-medium" style="font-family: var(--font-body);">Características y Amenidades</span>
       </div>
       <div class="grid transition-[grid-template-rows,opacity] duration-300 ease-in-out" :class="activeAccordion === 'caracteristicas' ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'">
@@ -123,7 +116,7 @@ async function copyListingLink() {
 
     <!-- Alrededor de la zona (puntos de interés cercanos) -->
     <div v-if="nearbyPlaces.length" class="bg-[#e3e3df] rounded-[24px] overflow-hidden transition-all duration-300">
-      <div @click="toggleAccordion('alrededores')" class="px-6 py-4 flex items-center justify-between cursor-pointer hover:bg-gray-300/50 transition-colors">
+      <div class="px-6 py-4 flex items-center justify-between cursor-pointer hover:bg-gray-300/50 transition-colors" @click="toggleAccordion('alrededores')">
         <span class="text-[17px] font-medium" style="font-family: var(--font-body);">Alrededor de la zona</span>
       </div>
       <div class="grid transition-[grid-template-rows,opacity] duration-300 ease-in-out" :class="activeAccordion === 'alrededores' ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'">
@@ -146,7 +139,7 @@ async function copyListingLink() {
 
     <!-- Disponibilidad (solo villas) -->
     <div v-if="listing.type === 'VILLA'" class="bg-[#e3e3df] rounded-[24px] overflow-hidden transition-all duration-300">
-      <div @click="toggleAccordion('disponibilidad')" class="px-6 py-4 flex items-center justify-between cursor-pointer hover:bg-gray-300/50 transition-colors">
+      <div class="px-6 py-4 flex items-center justify-between cursor-pointer hover:bg-gray-300/50 transition-colors" @click="toggleAccordion('disponibilidad')">
         <span class="text-[17px] font-medium" style="font-family: var(--font-body);">Disponibilidad</span>
       </div>
       <div class="grid transition-[grid-template-rows,opacity] duration-300 ease-in-out" :class="activeAccordion === 'disponibilidad' ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'">
@@ -160,7 +153,7 @@ async function copyListingLink() {
 
     <!-- Mapa -->
     <div v-if="mapCenter" class="bg-[#e3e3df] rounded-[24px] overflow-hidden transition-all duration-300">
-      <div @click="toggleAccordion('mapa')" class="px-6 py-4 flex items-center justify-between cursor-pointer hover:bg-gray-300/50 transition-colors">
+      <div class="px-6 py-4 flex items-center justify-between cursor-pointer hover:bg-gray-300/50 transition-colors" @click="toggleAccordion('mapa')">
         <span class="text-[17px] font-medium" style="font-family: var(--font-body);">Mapa</span>
       </div>
       <div class="grid transition-[grid-template-rows,opacity] duration-300 ease-in-out" :class="activeAccordion === 'mapa' ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'">
@@ -174,7 +167,7 @@ async function copyListingLink() {
 
     <!-- Ubicación y vendedor -->
     <div class="bg-[#e3e3df] rounded-[24px] overflow-hidden transition-all duration-300">
-      <div @click="toggleAccordion('ubicacion')" class="px-6 py-4 flex items-center justify-between cursor-pointer hover:bg-gray-300/50 transition-colors">
+      <div class="px-6 py-4 flex items-center justify-between cursor-pointer hover:bg-gray-300/50 transition-colors" @click="toggleAccordion('ubicacion')">
         <span class="text-[17px] font-medium" style="font-family: var(--font-body);">Ubicación y vendedor</span>
       </div>
       <div class="grid transition-[grid-template-rows,opacity] duration-300 ease-in-out" :class="activeAccordion === 'ubicacion' ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'">

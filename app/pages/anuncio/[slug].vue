@@ -2,7 +2,7 @@
 /**
  * Página de detalle de un anuncio — mismo lenguaje visual que el home
  * (sidebar sticky, logo, room-rail flotante) pero con datos reales y el
- * visor 360° real (Photo Sphere Viewer + tours), no el mock de /producto.
+ * visor 360° real (Photo Sphere Viewer + tours), sin datos de prueba.
  */
 import type { ListingFull, SceneWithHotspots } from '~~/shared/types/listing'
 import { ListingTypeLabels } from '~~/shared/types/enums'
@@ -175,14 +175,14 @@ function backToHome() {
                 {{ c.label }}
               </a>
             </template>
-            <a v-else :href="whatsappUrl" target="_blank" class="btn btn-neon btn-sm" id="listing-whatsapp-btn">
+            <a v-else id="listing-whatsapp-btn" :href="whatsappUrl" target="_blank" class="btn btn-neon btn-sm">
               Contactar por WhatsApp
             </a>
             <button
+              id="listing-save-btn"
               class="btn btn-sm rounded-full"
               :class="saved ? 'btn-info' : 'btn-neutral'"
               @click="toggleSave"
-              id="listing-save-btn"
             >
               <Icon :name="saved ? 'heartFilled' : 'heart'" class="w-3.5 h-3.5 inline" />
               {{ saved ? 'Guardado' : 'Guardar' }}
@@ -209,12 +209,12 @@ function backToHome() {
         <span class="text-[20px] font-medium tracking-tight text-black" style="font-family: var(--font-body);">Paseito</span>
       </div>
       <button
+        id="listing-save-btn-mobile"
         class="btn btn-sm btn-square rounded-full"
         :class="saved ? 'btn-neon' : 'btn-ghost text-black'"
-        @click="toggleSave"
-        id="listing-save-btn-mobile"
         :aria-label="saved ? 'Quitar de Mi Lista' : 'Guardar'"
         :aria-pressed="saved"
+        @click="toggleSave"
       >
         <Icon :name="saved ? 'heartFilled' : 'heart'" class="w-4 h-4" />
       </button>
@@ -246,7 +246,7 @@ function backToHome() {
                 :alt="listing.title"
                 class="w-full aspect-[16/10] object-cover rounded-2xl"
                 :style="{ borderRadius: 'var(--radius-viewer)' }"
-              />
+              >
             </div>
 
             <!-- Sin tour ni fotos -->
@@ -272,7 +272,7 @@ function backToHome() {
               :class="activeSceneId === scene.id && !viewingPhoto && !showDetails ? 'bg-white shadow-md scale-105' : 'bg-[var(--color-surface-elevated)] hover:bg-white/60'"
               @click="selectScene(scene.id)"
             >
-              <img :src="scene.previewUrl" :alt="scene.name" class="w-[50px] h-[50px] lg:w-[60px] lg:h-[60px] object-cover rounded-xl lg:rounded-[14px] block" />
+              <img :src="scene.previewUrl" :alt="scene.name" class="w-[50px] h-[50px] lg:w-[60px] lg:h-[60px] object-cover rounded-xl lg:rounded-[14px] block" >
               <span class="text-[10px] lg:text-[11px] font-bold text-center leading-tight mt-1 truncate w-full" :class="activeSceneId === scene.id && !viewingPhoto && !showDetails ? 'text-black' : 'text-gray-600'">{{ scene.name }}</span>
             </div>
 
@@ -284,7 +284,7 @@ function backToHome() {
                 :class="activePhotoId === photo.id && viewingPhoto && !showDetails ? 'bg-white shadow-md scale-105' : 'bg-[var(--color-surface-elevated)] hover:bg-white/60'"
                 @click="selectPhoto(photo.id)"
               >
-                <img :src="photo.thumbUrl || photo.url" :alt="`Foto ${i + 1}`" class="w-[50px] h-[50px] lg:w-[60px] lg:h-[60px] object-cover rounded-xl lg:rounded-[14px] block" />
+                <img :src="photo.thumbUrl || photo.url" :alt="`Foto ${i + 1}`" class="w-[50px] h-[50px] lg:w-[60px] lg:h-[60px] object-cover rounded-xl lg:rounded-[14px] block" >
                 <span class="text-[10px] lg:text-[11px] font-bold text-center leading-tight mt-1 truncate w-full" :class="activePhotoId === photo.id && viewingPhoto && !showDetails ? 'text-black' : 'text-gray-600'">{{ photo.name || `Foto ${i + 1}` }}</span>
               </div>
             </template>

@@ -11,7 +11,6 @@ import type { Photo } from '~~/shared/types/listing'
 useHead({ title: 'Editor de tour 360° — Paseito' })
 
 const route = useRoute()
-const router = useRouter()
 const listingId = computed(() => route.query.id as string)
 const store = useTourEditorStore()
 const { validatePanoramaClient, uploadImage, error: uploadErr } = useUpload()
@@ -301,12 +300,12 @@ async function publishListing() {
         <div class="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold border" style="border-color: var(--color-border);">✓</div>
         <span class="text-sm">Datos</span>
       </div>
-      <div class="flex-1 h-px" style="background: var(--color-neon);"></div>
+      <div class="flex-1 h-px" style="background: var(--color-neon);"/>
       <div class="flex items-center gap-2 opacity-40">
         <div class="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold border" style="border-color: var(--color-border);">✓</div>
         <span class="text-sm">Fotos</span>
       </div>
-      <div class="flex-1 h-px" style="background: var(--color-neon);"></div>
+      <div class="flex-1 h-px" style="background: var(--color-neon);"/>
       <div class="flex items-center gap-2">
         <div class="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold" style="background: var(--color-neon); color: #0D0D0D;">3</div>
         <span class="text-sm font-semibold">Tour 360°</span>
@@ -340,7 +339,7 @@ async function publishListing() {
           <Icon name="panorama" class="w-8 h-8 mb-1" stroke-width="1.5" style="color: var(--color-muted);" />
           <span class="text-sm font-semibold">Subir panorámica 360°</span>
           <span class="text-xs mt-0.5" style="color: var(--color-muted);">Imagen equirectangular (proporción 2:1)</span>
-          <input type="file" class="hidden" accept="image/*" @change="handlePanoramaFile" />
+          <input type="file" class="hidden" accept="image/*" @change="handlePanoramaFile" >
         </label>
 
         <!-- Subidas de panorámicas en curso / con error -->
@@ -351,7 +350,7 @@ async function publishListing() {
             class="relative w-28 h-20 rounded-xl overflow-hidden"
             :style="p.status === 'error' ? 'outline: 2px solid #dc2626;' : ''"
           >
-            <img :src="p.preview" :alt="p.name" class="w-full h-full object-cover" :class="{ 'opacity-40': p.status === 'uploading' }" />
+            <img :src="p.preview" :alt="p.name" class="w-full h-full object-cover" :class="{ 'opacity-40': p.status === 'uploading' }" >
             <div v-if="p.status === 'uploading'" class="absolute inset-0 flex items-center justify-center">
               <Icon name="spinner" class="w-6 h-6 animate-spin text-black" />
             </div>
@@ -402,7 +401,7 @@ async function publishListing() {
           <Icon name="bag" class="w-8 h-8 mb-1" stroke-width="1.5" style="color: var(--color-muted);" />
           <span class="text-sm font-semibold">Subir fotos</span>
           <span class="text-xs mt-0.5" style="color: var(--color-muted);">JPG, PNG, WebP — puedes elegir varias</span>
-          <input type="file" class="hidden" accept="image/*" multiple @change="handlePhotoFiles" />
+          <input type="file" class="hidden" accept="image/*" multiple @change="handlePhotoFiles" >
         </label>
 
         <!-- Subidas de fotos en curso / con error -->
@@ -413,7 +412,7 @@ async function publishListing() {
             class="relative w-28 h-20 rounded-xl overflow-hidden"
             :style="p.status === 'error' ? 'outline: 2px solid #dc2626;' : ''"
           >
-            <img :src="p.preview" :alt="p.name" class="w-full h-full object-cover" :class="{ 'opacity-40': p.status === 'uploading' }" />
+            <img :src="p.preview" :alt="p.name" class="w-full h-full object-cover" :class="{ 'opacity-40': p.status === 'uploading' }" >
             <div v-if="p.status === 'uploading'" class="absolute inset-0 flex items-center justify-center">
               <Icon name="spinner" class="w-6 h-6 animate-spin text-black" />
             </div>
@@ -427,7 +426,7 @@ async function publishListing() {
         <div v-if="photos.length" class="flex flex-wrap gap-3">
           <div v-for="photo in photos" :key="photo.id" class="w-40 group">
             <div class="relative w-40 h-28 rounded-xl overflow-hidden">
-              <img :src="photo.thumbUrl || photo.url" alt="Foto del anuncio" class="w-full h-full object-cover" />
+              <img :src="photo.thumbUrl || photo.url" alt="Foto del anuncio" class="w-full h-full object-cover" >
               <button
                 type="button"
                 class="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center shadow-sm opacity-70 group-hover:opacity-100 hover:bg-red-600 transition-all cursor-pointer"
@@ -444,7 +443,7 @@ async function publishListing() {
               style="border-color: var(--color-border); background: var(--color-surface);"
               placeholder="Nombre (opcional)"
               @blur="handleRenamePhoto(photo)"
-            />
+            >
           </div>
         </div>
 
@@ -482,8 +481,8 @@ async function publishListing() {
         Volver
       </NuxtLink>
       <button
-        class="btn btn-neon flex-1"
         id="publish-listing-btn"
+        class="btn btn-neon flex-1"
         :disabled="isPublishing || loadingListing || !!pendingUploads.length"
         @click="publishListing"
       >

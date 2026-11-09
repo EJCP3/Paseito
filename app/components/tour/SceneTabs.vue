@@ -5,7 +5,7 @@
  */
 import type { SceneWithHotspots } from '~~/shared/types/listing'
 
-const props = defineProps<{
+defineProps<{
   scenes: SceneWithHotspots[]
   activeSceneId: string
   editable?: boolean
@@ -40,7 +40,7 @@ function cancelEditing() {
 </script>
 
 <template>
-  <div class="scene-tabs" id="scene-tabs">
+  <div id="scene-tabs" class="scene-tabs">
     <h4 class="text-xs font-bold uppercase tracking-wider mb-3 px-1" style="color: var(--color-muted); font-family: var(--font-heading);">
       Escenas
     </h4>
@@ -48,10 +48,10 @@ function cancelEditing() {
     <div class="flex flex-wrap gap-2 pb-2 scrollbar-thin">
       <div
         v-for="scene in scenes"
+        :id="`scene-tab-${scene.id}`"
         :key="scene.id"
         class="scene-tab relative flex-shrink-0 group"
         :class="{ 'scene-tab-active': activeSceneId === scene.id }"
-        :id="`scene-tab-${scene.id}`"
       >
         <!-- Thumbnail -->
         <button type="button" class="block cursor-pointer" @click="emit('select', scene.id)">
@@ -60,7 +60,7 @@ function cancelEditing() {
               :src="scene.previewUrl"
               :alt="scene.name"
               class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-            />
+            >
             <!-- Active indicator -->
             <div
               v-if="activeSceneId === scene.id"
@@ -94,7 +94,7 @@ function cancelEditing() {
             @keydown.enter="commitEditing"
             @keydown.escape="cancelEditing"
             @blur="commitEditing"
-          />
+          >
         </div>
         <div v-else class="mt-1 flex items-center justify-center gap-1">
           <p

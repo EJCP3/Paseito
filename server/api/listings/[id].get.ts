@@ -8,15 +8,10 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'ID o slug requerido' })
   }
 
-  // Intentar buscar por slug primero (para URLs legibles)
-  let listing = await getListingBySlug(id)
+  // Slug primero (URLs legibles); si no existe, por ID
+  const listing = (await getListingBySlug(id)) ?? (await getListingById(id))
 
-  // Si no se encuentra por slug, buscar por ID
-  if (!listing) {
-    listing = await getListingById(id)
-  }
-
-  if (!listing) {
+  if (!listing || listing.type === 'VEHICLE') {
     throw createError({ statusCode: 404, statusMessage: 'Anuncio no encontrado' })
   }
 

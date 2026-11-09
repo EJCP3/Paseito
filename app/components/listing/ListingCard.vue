@@ -19,8 +19,8 @@ const props = defineProps<{
 
 // Imagen de portada: primera foto o preview de primera escena
 const coverImage = computed(() => {
-  if (props.listing.photos?.length) return props.listing.photos[0].thumbUrl || props.listing.photos[0].url
-  if (props.listing.scenes?.length) return props.listing.scenes[0].previewUrl
+  if (props.listing.photos?.length) return props.listing.photos[0]!.thumbUrl || props.listing.photos[0]!.url
+  if (props.listing.scenes?.length) return props.listing.scenes[0]!.previewUrl
   return '/images/hero/hero-1.webp' // Fallback
 })
 
@@ -40,9 +40,6 @@ const locationText = computed(() => {
     return `${props.listing.sector}, ${props.listing.city}`
   }
   if (props.listing.city) return props.listing.city
-  if (props.listing.brand && props.listing.model) {
-    return `${props.listing.brand} ${props.listing.model} ${props.listing.year || ''}`
-  }
   return ''
 })
 
@@ -53,9 +50,9 @@ const publishedDate = computed(() =>
 
 <template>
   <NuxtLink
+    :id="`listing-card-${listing.id}`"
     :to="`/anuncio/${listing.slug}`"
     class="card-paseito group block"
-    :id="`listing-card-${listing.id}`"
   >
     <!-- Imagen -->
     <div class="relative aspect-[4/3] overflow-hidden">
@@ -64,7 +61,7 @@ const publishedDate = computed(() =>
         :alt="listing.title"
         class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
         loading="lazy"
-      />
+      >
 
       <!-- Badge tipo -->
       <div class="absolute top-3 left-3 z-10">

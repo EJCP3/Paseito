@@ -1,7 +1,29 @@
-# Paseito 🏠🚗
+# Paseito
 
-Marketplace de inmuebles y vehículos con tours virtuales 360°.
+Marketplace de inmuebles (apartamentos, casas y villas) con tours virtuales 360°.
+Stack: Nuxt 4, Vue 3, Prisma + PostgreSQL, Better Auth, Tailwind 4 + daisyUI, Photo Sphere Viewer.
 
+## Comandos
+
+```bash
+pnpm install       # instala dependencias (postinstall: prisma generate + nuxt prepare)
+pnpm dev           # servidor de desarrollo
+pnpm build         # build de producción
+pnpm test          # tests (Vitest)
+pnpm lint          # ESLint
+pnpm typecheck     # nuxi typecheck (vue-tsc)
+```
+
+CI (`.github/workflows/ci.yml`) corre lint, typecheck, test y build en cada push y pull request.
+
+## Estructura
+
+- `app/` — frontend: `pages/`, `components/`, `composables/`, `stores/`, `plugins/`, `layouts/`
+- `server/` — API Nitro: `api/` (rutas), `services/` (lógica), `lib/` (utilidades puras), `utils/`, `middleware/`
+- `shared/` — schemas Zod, tipos, enums y datos compartidos entre app y server
+- `prisma/` — esquema y migraciones
+- `tests/` — tests de Vitest
+- `specs/` — specs de cada fase; `Plan.md` + `Requerimientos.md` son la fuente de verdad
 
 ## Ajustar animación del Hero
 

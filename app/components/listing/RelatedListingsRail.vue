@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * RelatedListingsRail — Otros anuncios activos en la página de detalle
- * Desktop: dock vertical flotante (mismo magnify-on-hover que app/pages/producto/[id].vue).
+ * Desktop: dock vertical flotante.
  * Móvil: carrusel horizontal al final de la página.
  * Si no hay otros anuncios, no se renderiza nada (sin hueco vacío).
  */
@@ -21,7 +21,7 @@ function coverImage(l: any) {
   return l.photos?.[0]?.thumbUrl || l.photos?.[0]?.url || l.scenes?.[0]?.previewUrl || '/images/portada1.webp'
 }
 
-// macOS Dock magnify-on-hover — mismo cálculo que app/pages/producto/[id].vue
+// macOS Dock magnify-on-hover
 const dockRef = ref<HTMLElement | null>(null)
 let dockIcons: NodeListOf<HTMLElement> | null = null
 let lastPointerY = -9999
@@ -36,6 +36,7 @@ const updateDockIconsPosition = () => {
 
   for (let i = 0; i < dockIcons.length; i++) {
     const icon = dockIcons[i]
+    if (!icon) continue
     const iconCenterY = dockRef.value.getBoundingClientRect().top - dockRef.value.scrollTop + icon.offsetTop + icon.offsetHeight / 2
     const distance = iconCenterY - lastPointerY
 
@@ -86,7 +87,7 @@ const handleDockLeave = () => {
         :to="`/anuncio/${l.slug}`"
         class="w-[72px] h-[72px] rounded-3xl cursor-pointer flex-shrink-0 p-3 thumbnail-item"
       >
-        <img :src="coverImage(l)" :alt="l.title" class="w-full h-full object-contain mix-blend-multiply" loading="lazy" />
+        <img :src="coverImage(l)" :alt="l.title" class="w-full h-full object-contain mix-blend-multiply" loading="lazy" >
       </NuxtLink>
     </div>
   </div>

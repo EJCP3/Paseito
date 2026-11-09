@@ -9,7 +9,7 @@ export function useTour(scenes: Ref<SceneWithHotspots[]>) {
   // Inicializar con la primera escena
   watch(scenes, (val) => {
     if (val.length && !activeSceneId.value) {
-      activeSceneId.value = val[0].id
+      activeSceneId.value = val[0]!.id
     }
   }, { immediate: true })
 
@@ -28,14 +28,14 @@ export function useTour(scenes: Ref<SceneWithHotspots[]>) {
   function nextScene() {
     const idx = activeSceneIndex.value
     if (idx < scenes.value.length - 1) {
-      activeSceneId.value = scenes.value[idx + 1].id
+      activeSceneId.value = scenes.value[idx + 1]!.id
     }
   }
 
   function prevScene() {
     const idx = activeSceneIndex.value
     if (idx > 0) {
-      activeSceneId.value = scenes.value[idx - 1].id
+      activeSceneId.value = scenes.value[idx - 1]!.id
     }
   }
 

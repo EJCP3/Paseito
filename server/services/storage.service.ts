@@ -24,7 +24,7 @@ export async function uploadImage(file: Buffer, folder: string): Promise<{ url: 
   const signature = signParams({ folder, timestamp }, config.cloudApiSecret)
 
   const form = new FormData()
-  form.append('file', new Blob([file]))
+  form.append('file', new Blob([new Uint8Array(file)]))
   form.append('api_key', config.cloudApiKey)
   form.append('timestamp', String(timestamp))
   form.append('folder', folder)
@@ -62,7 +62,7 @@ export async function deleteImage(url: string, listingId: string): Promise<void>
   const m = url.match(/\/upload\/(?:v\d+\/)?(.+)\.[a-z0-9]+$/i)
   if (!m) return
 
-  const publicId = decodeURIComponent(m[1])
+  const publicId = decodeURIComponent(m[1]!)
   if (!publicId.startsWith(`paseito/listings/${listingId}/`)) return
   const timestamp = Math.floor(Date.now() / 1000)
   const signature = signParams({ public_id: publicId, timestamp }, config.cloudApiSecret)

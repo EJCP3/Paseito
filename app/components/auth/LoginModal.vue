@@ -52,8 +52,11 @@ async function handleForgotPassword() {
     fieldErrors.value.email = 'Ingresa tu correo para recuperar la contraseña'
     return
   }
-  await authClient.forgetPassword({ email: email.value, redirectTo: '/' })
-  formError.value = 'Si el correo existe, te enviamos un enlace para restablecer tu contraseña.'
+  const { error } = await authClient.requestPasswordReset({ email: email.value, redirectTo: '/' })
+  // ponytail: el servidor aún no define sendResetPassword; el flujo real llega en Fase 3
+  formError.value = error
+    ? 'La recuperación de contraseña aún no está disponible. Escríbenos para ayudarte.'
+    : 'Si el correo existe, te enviamos un enlace para restablecer tu contraseña.'
 }
 
 function switchToSignup() {
@@ -70,7 +73,7 @@ function switchToSignup() {
           type="email"
           class="auth-input"
           placeholder="Correo"
-        />
+        >
         <p v-if="fieldErrors.email" class="text-xs text-red-600 mt-1">{{ fieldErrors.email }}</p>
       </div>
 
@@ -80,7 +83,7 @@ function switchToSignup() {
           type="password"
           class="auth-input"
           placeholder="Contraseña"
-        />
+        >
         <p v-if="fieldErrors.password" class="text-xs text-red-600 mt-1">{{ fieldErrors.password }}</p>
       </div>
 

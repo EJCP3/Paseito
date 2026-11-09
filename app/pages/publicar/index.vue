@@ -17,12 +17,11 @@ import {
 import { parseContactValue } from '~~/shared/schemas/contact.schema'
 import locations from '~~/shared/data/rd-locations.json'
 
-// Opciones del selector — icono SVG por tipo; Vehículo aún no disponible
+// Opciones del selector — icono SVG por tipo
 const publishTypes = [
   { type: ListingType.APARTMENT, icon: 'building', disabled: false },
   { type: ListingType.HOUSE, icon: 'home', disabled: false },
   { type: ListingType.VILLA, icon: 'villa', disabled: false },
-  { type: ListingType.VEHICLE, icon: 'car', disabled: true },
 ]
 
 useHead({
@@ -55,11 +54,6 @@ const form = reactive({
   condition: '' as string,
   constructionYear: null as number | null,
   amenities: [] as string[],
-  // Vehículo
-  brand: '',
-  model: '',
-  year: null as number | null,
-  mileageKm: null as number | null,
 })
 
 // Campos propios de cada tipo — cada uno vive en su propio subcomponente
@@ -122,9 +116,9 @@ watch(user, (u) => {
   if (!u) return
   for (const c of contactChannels) {
     const v = (u as any)?.[c.profileKey] || ''
-    if (v && !contacts[c.type].value) {
-      contacts[c.type].value = v
-      contacts[c.type].show = true
+    if (v && !contacts[c.type]!.value) {
+      contacts[c.type]!.value = v
+      contacts[c.type]!.show = true
     }
   }
 }, { immediate: true })
@@ -152,7 +146,7 @@ const locationConfirmed = computed(() => form.latitude !== null && form.longitud
 const contactErrors = computed<Record<string, string>>(() => {
   const errs: Record<string, string> = {}
   for (const c of contactChannels) {
-    const v = contacts[c.type].value.trim()
+    const v = contacts[c.type]!.value.trim()
     if (!v) continue
     const result = parseContactValue(c.type, v)
     if (!result.ok) errs[c.type] = result.error
@@ -165,7 +159,6 @@ const isSubmitting = ref(false)
 const error = ref<string | null>(null)
 
 const isRealEstate = computed(() => form.type === ListingType.APARTMENT || form.type === ListingType.HOUSE || form.type === ListingType.VILLA)
-const isVehicle = computed(() => form.type === ListingType.VEHICLE)
 
 function toggleAmenity(amenity: string) {
   const idx = form.amenities.indexOf(amenity)
@@ -186,15 +179,6 @@ const modeMissing = computed(() =>
 const substep = ref(0)
 
 const stepDefs = computed(() => {
-  if (isVehicle.value) {
-    return [
-      { key: 'tipo', label: 'Tipo' },
-      { key: 'basico', label: 'Información básica' },
-      { key: 'vehiculo', label: 'Datos del vehículo' },
-      { key: 'contacto', label: 'Contacto' },
-    ]
-  }
-
   const detalleLabel = form.type === ListingType.VILLA
     ? 'Detalles de la villa'
     : form.type === ListingType.HOUSE
@@ -236,11 +220,6 @@ const stepMissing = computed<string[]>(() => {
       if (form.type === ListingType.APARTMENT && !apartmentFields.mode) missing.push('Modalidad (alquiler o venta)')
       if (form.type === ListingType.HOUSE && !houseFields.mode) missing.push('Modalidad (alquiler o venta)')
       if (form.type === ListingType.VILLA && !villaFields.pricePerDay) missing.push('Precio por día')
-      break
-    case 'vehiculo':
-      if (!form.brand) missing.push('Marca')
-      if (!form.model) missing.push('Modelo')
-      if (!form.year) missing.push('Año')
       break
     case 'contacto':
       if (hasContactErrors.value) missing.push('Corregir el formato de los contactos marcados')
@@ -346,7 +325,7 @@ async function handleSubmit() {
       body.mode = apartmentFields.mode
       for (const key of ['floorNumber', 'totalFloors', 'hasElevator', 'water24h', 'power24h', 'hasBalcony', 'maintenanceFee'] as const) {
         const value = apartmentFields[key]
-        if (value !== null && value !== '') body[key] = value
+        if (value !== null && (value as unknown) !== '') body[key] = value // v-model.number deja '' al vaciar el campo
       }
     }
 
@@ -354,29 +333,22 @@ async function handleSubmit() {
       body.mode = houseFields.mode
       for (const key of ['floors', 'hasPatio', 'patioSize', 'hasPool', 'hasGarage', 'garageSpots', 'hasCistern', 'hasGenerator', 'landAreaM2'] as const) {
         const value = houseFields[key]
-        if (value !== null && value !== '') body[key] = value
+        if (value !== null && (value as unknown) !== '') body[key] = value // v-model.number deja '' al vaciar el campo
       }
     }
 
     if (form.type === ListingType.VILLA) {
       for (const key of ['villaPoolType', 'villaPoolSize', 'guestCapacity', 'bedsCount', 'pricePerDay', 'pricePerWeek', 'minNights', 'securityDeposit', 'cancellationPolicy', 'checkInTime', 'checkOutTime'] as const) {
         const value = villaFields[key]
-        if (value !== null && value !== '') body[key] = value
+        if (value !== null && (value as unknown) !== '') body[key] = value // v-model.number deja '' al vaciar el campo
       }
       body.villaServices = villaFields.villaServices
     }
 
-    if (isVehicle.value) {
-      if (form.brand) body.brand = form.brand
-      if (form.model) body.model = form.model
-      if (form.year) body.year = form.year
-      if (form.mileageKm !== null) body.mileageKm = form.mileageKm
-    }
-
     // Redes/contactos elegidos (solo los marcados y con valor)
     const chosenContacts = contactChannels
-      .filter(c => contacts[c.type].show && contacts[c.type].value.trim())
-      .map(c => ({ type: c.type, value: contacts[c.type].value.trim() }))
+      .filter(c => contacts[c.type]!.show && contacts[c.type]!.value.trim())
+      .map(c => ({ type: c.type, value: contacts[c.type]!.value.trim() }))
     if (chosenContacts.length) body.contacts = chosenContacts
 
     const listing = await $fetch('/api/listings', { method: 'POST', body })
@@ -426,12 +398,12 @@ async function handleSubmit() {
         <div class="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold" style="background: var(--color-neon); color: #0D0D0D;">1</div>
         <span class="text-sm font-semibold">Datos</span>
       </div>
-      <div class="flex-1 h-px" style="background: var(--color-border);"></div>
+      <div class="flex-1 h-px" style="background: var(--color-border);"/>
       <div class="flex items-center gap-2 opacity-40">
         <div class="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold border" style="border-color: var(--color-border);">2</div>
         <span class="text-sm">Fotos</span>
       </div>
-      <div class="flex-1 h-px" style="background: var(--color-border);"></div>
+      <div class="flex-1 h-px" style="background: var(--color-border);"/>
       <div class="flex items-center gap-2 opacity-40">
         <div class="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold border" style="border-color: var(--color-border);">3</div>
         <span class="text-sm">Tour 360°</span>
@@ -476,7 +448,7 @@ async function handleSubmit() {
         {{ error }}
       </div>
 
-      <form @submit.prevent="handleSubmit" class="space-y-6">
+      <form class="space-y-6" @submit.prevent="handleSubmit">
         <!-- Paso: Tipo -->
         <div v-if="currentStepKey === 'tipo'">
           <label class="text-sm font-semibold block mb-3">¿Qué quieres publicar?</label>
@@ -515,7 +487,7 @@ async function handleSubmit() {
               class="field-input"
               placeholder="Ej: Apartamento moderno en Piantini con vista al mar"
               minlength="5"
-            />
+            >
           </label>
 
           <label class="field">
@@ -533,7 +505,7 @@ async function handleSubmit() {
           <div v-if="form.type !== ListingType.VILLA" class="grid grid-cols-3 gap-4">
             <label class="field col-span-2">
               <span class="field-label">Precio <span class="text-red-500">*</span></span>
-              <input v-model.number="form.price" type="number" class="field-input" placeholder="150000" min="1" />
+              <input v-model.number="form.price" type="number" class="field-input" placeholder="150000" min="1" >
             </label>
             <label class="field relative">
               <span class="field-label">Moneda</span>
@@ -600,19 +572,19 @@ async function handleSubmit() {
           <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <label class="field">
               <span class="field-label">Área (m²)</span>
-              <input v-model.number="form.areaM2" type="number" class="field-input" placeholder="120" />
+              <input v-model.number="form.areaM2" type="number" class="field-input" placeholder="120" >
             </label>
             <label class="field">
               <span class="field-label">Habitaciones</span>
-              <input v-model.number="form.bedrooms" type="number" class="field-input" placeholder="3" min="0" />
+              <input v-model.number="form.bedrooms" type="number" class="field-input" placeholder="3" min="0" >
             </label>
             <label class="field">
               <span class="field-label">Baños</span>
-              <input v-model.number="form.bathrooms" type="number" class="field-input" placeholder="2.5" min="0" step="0.5" />
+              <input v-model.number="form.bathrooms" type="number" class="field-input" placeholder="2.5" min="0" step="0.5" >
             </label>
             <label class="field">
               <span class="field-label">Parking</span>
-              <input v-model.number="form.parking" type="number" class="field-input" placeholder="1" min="0" />
+              <input v-model.number="form.parking" type="number" class="field-input" placeholder="1" min="0" >
             </label>
           </div>
 
@@ -633,11 +605,11 @@ async function handleSubmit() {
             </label>
             <label class="field">
               <span class="field-label">Año de construcción</span>
-              <input v-model.number="form.constructionYear" type="number" class="field-input" placeholder="2015" />
+              <input v-model.number="form.constructionYear" type="number" class="field-input" placeholder="2015" >
             </label>
             <div class="flex items-end pb-3">
               <label class="flex items-center gap-2 text-sm">
-                <input type="checkbox" v-model="form.petsAllowed" class="w-4 h-4 accent-[var(--color-neon)] cursor-pointer" />
+                <input v-model="form.petsAllowed" type="checkbox" class="w-4 h-4 accent-[var(--color-neon)] cursor-pointer" >
                 Acepta mascotas
               </label>
             </div>
@@ -667,26 +639,6 @@ async function handleSubmit() {
           <VillaFields v-else-if="form.type === ListingType.VILLA" v-model="villaFields" />
         </template>
 
-        <!-- Paso: Datos del vehículo -->
-        <div v-if="currentStepKey === 'vehiculo'" class="grid grid-cols-2 gap-4">
-          <label class="field">
-            <span class="field-label">Marca <span class="text-red-500">*</span></span>
-            <input v-model="form.brand" type="text" class="field-input" placeholder="Toyota" />
-          </label>
-          <label class="field">
-            <span class="field-label">Modelo <span class="text-red-500">*</span></span>
-            <input v-model="form.model" type="text" class="field-input" placeholder="Corolla" />
-          </label>
-          <label class="field">
-            <span class="field-label">Año <span class="text-red-500">*</span></span>
-            <input v-model.number="form.year" type="number" class="field-input" placeholder="2024" min="1900" />
-          </label>
-          <label class="field">
-            <span class="field-label">Kilometraje</span>
-            <input v-model.number="form.mileageKm" type="number" class="field-input" placeholder="15000" min="0" />
-          </label>
-        </div>
-
         <!-- Paso: Contacto (último — incluye el botón de publicar) -->
         <template v-if="currentStepKey === 'contacto'">
           <p class="text-xs mb-1" style="color: var(--color-muted);">
@@ -696,24 +648,24 @@ async function handleSubmit() {
             <div v-for="c in contactChannels" :key="c.type">
               <div
                 class="field"
-                :class="{ 'field-active': contacts[c.type].show && !contactErrors[c.type] }"
+                :class="{ 'field-active': contacts[c.type]!.show && !contactErrors[c.type] }"
                 :style="contactErrors[c.type] ? 'border-color: #dc2626;' : ''"
               >
                 <div class="flex items-center gap-2 mb-0.5">
                   <input
-                    type="checkbox"
-                    v-model="contacts[c.type].show"
                     :id="`contact-${c.type}`"
+                    v-model="contacts[c.type]!.show"
+                    type="checkbox"
                     class="w-4 h-4 accent-[var(--color-neon)] cursor-pointer flex-shrink-0"
-                  />
+                  >
                   <label :for="`contact-${c.type}`" class="field-label !mb-0 cursor-pointer">{{ c.label }}</label>
                 </div>
                 <input
-                  v-model="contacts[c.type].value"
+                  v-model="contacts[c.type]!.value"
                   type="text"
                   class="field-input"
                   :placeholder="c.placeholder"
-                />
+                >
               </div>
               <p v-if="contactErrors[c.type]" class="text-xs text-red-600 mt-1 px-1">
                 {{ contactErrors[c.type] }}
@@ -747,11 +699,11 @@ async function handleSubmit() {
 
           <button
             v-if="isLastStep"
+            id="form-submit"
             type="submit"
             class="btn btn-neon flex-1"
             :class="{ 'opacity-60': !stepValid }"
             :disabled="isSubmitting"
-            id="form-submit"
           >
             {{ isSubmitting ? 'Publicando...' : 'Continuar → Fotos' }}
           </button>

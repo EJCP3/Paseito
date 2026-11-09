@@ -45,7 +45,7 @@ export function parseContactValue(
       if (!m) {
         return { ok: false, error: 'Ese link no parece ser de Facebook. Debe verse como facebook.com/tu_pagina.' }
       }
-      return { ok: true, normalized: `https://facebook.com/${m[1].replace(/\/$/, '')}` }
+      return { ok: true, normalized: `https://facebook.com/${m[1]!.replace(/\/$/, '')}` }
     }
 
     case 'tiktok': {
