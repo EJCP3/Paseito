@@ -2,10 +2,7 @@
 import { getListingsByOwner } from '~~/server/services/listing.service'
 
 export default defineEventHandler(async (event) => {
-  const session = await auth.api.getSession({ headers: event.headers })
-  if (!session?.user) {
-    throw createError({ statusCode: 401, statusMessage: 'No autenticado' })
-  }
+  const session = await requireUser(event)
 
   return getListingsByOwner(session.user.id)
 })

@@ -6,8 +6,7 @@ export default defineEventHandler(async (event) => {
   const rangeId = getRouterParam(event, 'rangeId')
   if (!id || !rangeId) throw createError({ statusCode: 400, statusMessage: 'ID requerido' })
 
-  const session = await auth.api.getSession({ headers: event.headers })
-  if (!session?.user) throw createError({ statusCode: 401, statusMessage: 'No autenticado' })
+  const session = await requireUser(event)
 
   await deleteAvailabilityRange(id, session.user.id, rangeId)
   return { success: true }

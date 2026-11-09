@@ -219,10 +219,7 @@ export async function detectAndSaveNearbyPlaces(
   lng: number,
   excludeNames: string[] = []
 ) {
-  const listing = await prisma.listing.findUnique({ where: { id: listingId }, select: { ownerId: true } })
-  if (!listing || listing.ownerId !== ownerId) {
-    throw createError({ statusCode: 403, statusMessage: 'No tienes permiso para editar este anuncio' })
-  }
+  await requireOwnedListing(listingId, ownerId)
 
   // Al publicar, un Overpass caído no debe romper el flujo: se guarda sin POIs.
   let found: NearbyPlaceResult[] = []

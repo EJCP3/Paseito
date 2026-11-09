@@ -59,4 +59,9 @@ describe('buildListingWhere', () => {
     expect(JSON.stringify(where)).toContain('abc')
     expect(where.id).toEqual({ not: 'abc' })
   })
+
+  it('siempre excluye anuncios borrados (deletedAt: null), con y sin filtros', () => {
+    expect(buildListingWhere({}).deletedAt).toBeNull()
+    expect(buildListingWhere({ city: 'Santiago', maxPrice: 1000, excludeId: 'abc' } as any).deletedAt).toBeNull()
+  })
 })

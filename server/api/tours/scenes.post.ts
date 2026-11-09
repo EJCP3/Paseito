@@ -5,18 +5,12 @@ import { isListingAssetUrl } from '~~/server/lib/assetUrl'
 
 
 export default defineEventHandler(async (event) => {
-  const session = await auth.api.getSession({ headers: event.headers })
-  if (!session?.user) {
-    throw createError({ statusCode: 401, statusMessage: 'No autenticado' })
-  }
+  const session = await requireUser(event)
 
   const body = await readBody(event)
   const data = parseOr400(CreateSceneSchema, body)
 
-  const listing = await prisma.listing.findUnique({ where: { id: data.listingId }, select: { ownerId: true } })
-  if (!listing || listing.ownerId !== session.user.id) {
-    throw createError({ statusCode: 403, statusMessage: 'No tienes permiso para editar este anuncio' })
-  }
+  await requireOwnedListing(data.listingId, session.user.id)
 
   const { cloudName } = useRuntimeConfig()
   if (

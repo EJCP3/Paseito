@@ -3,6 +3,7 @@
 import type { ListingFiltersInput, CreateListingInput, UpdateListingInput } from '~~/shared/schemas/listing.schema'
 import { buildListingWhere } from '~~/server/lib/listingWhere'
 import { publicCoords } from '~~/server/lib/coords'
+import { canPublish, nextOwnerStatus } from '~~/server/lib/listingRules'
 
 /**
  * Genera un slug legible a partir del título
@@ -66,7 +67,7 @@ export async function getListings(filters: ListingFiltersInput) {
 export async function getListingBySlug(slug: string) {
   try {
     const listing = await prisma.listing.findUnique({
-      where: { slug },
+      where: { slug, deletedAt: null },
       include: {
         photos: { orderBy: { order: 'asc' } },
         scenes: {
@@ -78,7 +79,7 @@ export async function getListingBySlug(slug: string) {
         owner: {
           select: {
             id: true, name: true, phone: true, image: true, verificationTier: true,
-            _count: { select: { listings: { where: { status: 'ACTIVE' } } } },
+            _count: { select: { listings: { where: { status: 'ACTIVE', deletedAt: null } } } },
           },
         },
       },
@@ -99,7 +100,7 @@ export async function getListingBySlug(slug: string) {
 export async function getListingById(id: string) {
   try {
     return await prisma.listing.findUnique({
-      where: { id },
+      where: { id, deletedAt: null },
       include: {
         photos: { orderBy: { order: 'asc' } },
         scenes: {
@@ -123,7 +124,7 @@ export async function getListingById(id: string) {
 export async function getListingsByOwner(ownerId: string) {
   try {
     return await prisma.listing.findMany({
-      where: { ownerId },
+      where: { ownerId, deletedAt: null },
       include: {
         photos: { orderBy: { order: 'asc' }, take: 1 },
         scenes: { orderBy: { order: 'asc' }, take: 1, select: { previewUrl: true } },
@@ -145,7 +146,7 @@ export async function createListing(data: CreateListingInput, ownerId: string) {
   const mode = data.type === 'VILLA' ? 'RENT_DAILY' : (data as any).mode
 
 
-  // No hay paso de moderación/aprobación: el listado queda visible de inmediato.
+  // Nace como borrador: se publica (ACTIVE) con publishListing, tras aceptar el contacto público.
   // `data` es la unión discriminada (apartamento/casa/villa): cada
   // rama trae solo sus propios campos, todos columnas opcionales del modelo.
   return prisma.listing.create({
@@ -155,7 +156,7 @@ export async function createListing(data: CreateListingInput, ownerId: string) {
       slug,
       ownerId,
       price: data.price,
-      status: 'ACTIVE',
+      status: 'DRAFT',
     },
   })
 }
@@ -165,8 +166,8 @@ export async function createListing(data: CreateListingInput, ownerId: string) {
  */
 export async function updateListing(id: string, data: UpdateListingInput, ownerId: string) {
   // Verificar propiedad
-  const listing = await prisma.listing.findUnique({ where: { id }, select: { ownerId: true } })
-  if (!listing || listing.ownerId !== ownerId) {
+  const listing = await prisma.listing.findUnique({ where: { id }, select: { ownerId: true, deletedAt: true } })
+  if (!listing || listing.deletedAt || listing.ownerId !== ownerId) {
     throw createError({ statusCode: 403, statusMessage: 'No tienes permiso para editar este anuncio' })
   }
 
@@ -177,25 +178,86 @@ export async function updateListing(id: string, data: UpdateListingInput, ownerI
 }
 
 /**
- * Eliminar un listado (solo el dueño)
+ * Eliminar un listado (solo el dueño). Borrado lógico: se conservan pagos, denuncias y eventos.
  */
 export async function deleteListing(id: string, ownerId: string) {
-  const listing = await prisma.listing.findUnique({ where: { id }, select: { ownerId: true } })
-  if (!listing || listing.ownerId !== ownerId) {
+  const listing = await prisma.listing.findUnique({ where: { id }, select: { ownerId: true, deletedAt: true } })
+  if (!listing || listing.deletedAt || listing.ownerId !== ownerId) {
     throw createError({ statusCode: 403, statusMessage: 'No tienes permiso para eliminar este anuncio' })
   }
 
-  return prisma.listing.delete({ where: { id } })
+  return prisma.listing.update({ where: { id }, data: { deletedAt: new Date() } })
+}
+
+async function ownedListingForStatus(id: string, ownerId: string) {
+  const listing = await prisma.listing.findUnique({
+    where: { id },
+    select: {
+      ownerId: true, deletedAt: true, status: true, contactConsentAt: true,
+      _count: { select: { photos: true, scenes: true } },
+    },
+  })
+  if (!listing || listing.deletedAt || listing.ownerId !== ownerId) {
+    throw createError({ statusCode: 403, statusMessage: 'No tienes permiso para editar este anuncio' })
+  }
+  return listing
+}
+
+/**
+ * Publicar (DRAFT/PAUSED → ACTIVE). Exige consentimiento de contacto público (RQ-LEGAL-02).
+ */
+export async function publishListing(id: string, ownerId: string, contactConsent: boolean) {
+  const listing = await ownedListingForStatus(id, ownerId)
+  const check = canPublish({
+    status: listing.status,
+    photosCount: listing._count.photos,
+    scenesCount: listing._count.scenes,
+    contactConsentAt: contactConsent ? new Date() : listing.contactConsentAt,
+  })
+  if (!check.ok) throw createError({ statusCode: 400, statusMessage: check.reason })
+  const next = nextOwnerStatus(listing.status, 'publish')
+  if (!next.ok) throw createError({ statusCode: 400, statusMessage: next.reason })
+
+  return prisma.listing.update({
+    where: { id },
+    data: {
+      status: next.status as 'ACTIVE',
+      ...(contactConsent && { contactConsentAt: new Date() }),
+    },
+    select: { id: true, slug: true, status: true },
+  })
+}
+
+/**
+ * Pausar / reanudar (solo el dueño)
+ */
+export async function changeListingStatus(id: string, ownerId: string, action: 'pause' | 'resume') {
+  const listing = await ownedListingForStatus(id, ownerId)
+  // Reanudar publica de nuevo: mismos requisitos que publicar (fotos/escenas y consentimiento)
+  if (action === 'resume') {
+    const check = canPublish({
+      status: listing.status,
+      photosCount: listing._count.photos,
+      scenesCount: listing._count.scenes,
+      contactConsentAt: listing.contactConsentAt,
+    })
+    if (!check.ok) throw createError({ statusCode: 400, statusMessage: check.reason })
+  }
+  const next = nextOwnerStatus(listing.status, action)
+  if (!next.ok) throw createError({ statusCode: 400, statusMessage: next.reason })
+
+  return prisma.listing.update({
+    where: { id },
+    data: { status: next.status as 'ACTIVE' | 'PAUSED' },
+    select: { id: true, slug: true, status: true },
+  })
 }
 
 /**
  * Agregar una foto a un anuncio (solo el dueño)
  */
 export async function addPhoto(listingId: string, ownerId: string, data: { url: string; thumbUrl: string; name: string | null; order: number }) {
-  const listing = await prisma.listing.findUnique({ where: { id: listingId }, select: { ownerId: true } })
-  if (!listing || listing.ownerId !== ownerId) {
-    throw createError({ statusCode: 403, statusMessage: 'No tienes permiso para editar este anuncio' })
-  }
+  await requireOwnedListing(listingId, ownerId)
 
   return prisma.photo.create({
     data: { listingId, url: data.url, thumbUrl: data.thumbUrl, name: data.name, order: data.order },
@@ -203,10 +265,9 @@ export async function addPhoto(listingId: string, ownerId: string, data: { url: 
 }
 
 export async function renamePhoto(photoId: string, ownerId: string, name: string) {
-  const photo = await prisma.photo.findUnique({ where: { id: photoId }, select: { listing: { select: { ownerId: true } } } })
-  if (!photo || photo.listing.ownerId !== ownerId) {
-    throw createError({ statusCode: 403, statusMessage: 'No tienes permiso para editar esta foto' })
-  }
+  const photo = await prisma.photo.findUnique({ where: { id: photoId }, select: { listingId: true } })
+  if (!photo) throw createError({ statusCode: 404, statusMessage: 'Foto no encontrada' })
+  await requireOwnedListing(photo.listingId, ownerId)
 
   return prisma.photo.update({ where: { id: photoId }, data: { name: name.trim() || null } })
 }

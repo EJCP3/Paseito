@@ -119,6 +119,7 @@ model User {
   role             Role       @default(USER)
   suspended        Boolean    @default(false)
   suspendedAt      DateTime?
+  deletedAt        DateTime? // borrado lógico de la cuenta (anonimizada)
   termsAcceptedAt  DateTime? // RQ-LEGAL-01
   reports          Report[]   @relation("Reporter")
   resolvedReports  Report[]   @relation("Resolver")
@@ -265,6 +266,8 @@ model Listing {
   reports      Report[]
   events       ListingEvent[]
   features     Feature[]
+
+  deletedAt DateTime? // borrado lógico; siempre se filtra junto a status
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

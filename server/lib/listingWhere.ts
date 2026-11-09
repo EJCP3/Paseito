@@ -10,6 +10,7 @@ export function buildListingWhere(f: Partial<ListingFiltersInput>): Prisma.Listi
   }
   return {
     status: 'ACTIVE',
+    deletedAt: null,
     ...(excludeId && { id: { not: excludeId } }),
     // ponytail: VEHICLE sigue declarado en el enum de Prisma a propósito (RQ-SCOPE-02, evita migrar filas); se excluye aquí
     type: type ?? { in: ['APARTMENT', 'HOUSE', 'VILLA'] },

@@ -27,3 +27,5 @@ paseito.md
 Requerimientos.md
 paseito-tecnico.md
 Plan.md
+# Credenciales de prueba locales
+scripts/*.local.json

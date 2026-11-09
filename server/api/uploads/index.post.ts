@@ -7,10 +7,7 @@ const MAX_BYTES = 40 * 1024 * 1024
 const tooLarge = () => createError({ statusCode: 413, statusMessage: 'La imagen supera el máximo de 40 MB' })
 
 export default defineEventHandler(async (event) => {
-  const session = await auth.api.getSession({ headers: event.headers })
-  if (!session?.user) {
-    throw createError({ statusCode: 401, statusMessage: 'No autenticado' })
-  }
+  const session = await requireUser(event)
 
   // Rechazo temprano, antes de leer el cuerpo
   const len = getRequestHeader(event, 'content-length')
@@ -30,10 +27,7 @@ export default defineEventHandler(async (event) => {
   if (!listingId) {
     throw createError({ statusCode: 400, statusMessage: 'listingId requerido' })
   }
-  const listing = await prisma.listing.findUnique({ where: { id: listingId }, select: { ownerId: true } })
-  if (!listing || listing.ownerId !== session.user.id) {
-    throw createError({ statusCode: 403, statusMessage: 'No tienes permiso para editar este anuncio' })
-  }
+  await requireOwnedListing(listingId, session.user.id)
 
   const kind = field('kind') || 'photo'
   if (kind !== 'photo' && kind !== 'panorama') {
