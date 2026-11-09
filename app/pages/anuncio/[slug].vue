@@ -135,6 +135,58 @@ function selectScene(sceneId: string) {
   showDetails.value = false
 }
 
+// --- Analítica anónima (VIEW, CONTACT_CLICK, TOUR_OPEN, TOUR_TIME) ---
+const { track } = useListingEvents()
+const CHANNELS = ['whatsapp', 'instagram', 'facebook', 'tiktok', 'website'] as const
+function trackContact(type: string) {
+  const channel = CHANNELS.find((c) => c === type)
+  if (listing.value && channel) track(listing.value.id, 'CONTACT_CLICK', { channel })
+}
+
+const tourReady = ref(false)
+let tourOpened = false
+let tourSince: number | null = null
+let tourMs = 0
+let tourSent = false
+
+function onTourReady() {
+  tourReady.value = true
+  if (!tourOpened && listing.value) {
+    tourOpened = true
+    track(listing.value.id, 'TOUR_OPEN')
+  }
+}
+// Acumula ms solo mientras el visor está montado, listo, a la vista y la pestaña visible
+function syncTour() {
+  if (tourSent) return
+  const active = tourReady.value && !viewingPhoto.value && !showDetails.value && document.visibilityState === 'visible'
+  if (active && tourSince === null) tourSince = Date.now()
+  else if (!active && tourSince !== null) { tourMs += Date.now() - tourSince; tourSince = null }
+}
+// Un solo TOUR_TIME por visita: se envía la primera vez que la pestaña se oculta, se cierra o se desmonta
+function flushTourTime() {
+  if (tourSent) return
+  tourSent = true
+  if (tourSince !== null) { tourMs += Date.now() - tourSince; tourSince = null }
+  if (tourMs >= 3000 && listing.value) track(listing.value.id, 'TOUR_TIME', { value: Math.round(tourMs / 1000) })
+}
+function onVisibility() {
+  if (document.visibilityState === 'hidden') flushTourTime()
+  else syncTour()
+}
+watch(viewingPhoto, (v) => { if (v) tourReady.value = false })
+watch([tourReady, viewingPhoto, showDetails], syncTour)
+onMounted(() => {
+  if (listing.value) track(listing.value.id, 'VIEW')
+  document.addEventListener('visibilitychange', onVisibility)
+  window.addEventListener('pagehide', flushTourTime)
+})
+onBeforeUnmount(() => {
+  document.removeEventListener('visibilitychange', onVisibility)
+  window.removeEventListener('pagehide', flushTourTime)
+  flushTourTime()
+})
+
 const { sweep } = useGlimmSweep()
 onMounted(prefetchGlimm)
 
@@ -186,6 +238,7 @@ function backToHome() {
                 :href="c.href"
                 target="_blank"
                 rel="noopener"
+                @click="trackContact(c.type)"
                 class="btn btn-sm rounded-full"
                 :class="c.type === 'whatsapp' ? 'btn-neon' : ''"
                 :style="c.type !== 'whatsapp' ? 'background: #171717; color: #ffffff; border: none;' : ''"
@@ -193,7 +246,7 @@ function backToHome() {
                 {{ c.label }}
               </a>
             </template>
-            <a v-else-if="listing.owner?.phone" id="listing-whatsapp-btn" :href="whatsappUrl" target="_blank" class="btn btn-neon btn-sm">
+            <a v-else-if="listing.owner?.phone" id="listing-whatsapp-btn" :href="whatsappUrl" target="_blank" class="btn btn-neon btn-sm" @click="trackContact('whatsapp')">
               Contactar por WhatsApp
             </a>
             <button
@@ -258,6 +311,7 @@ function backToHome() {
               ref="tourViewerRef"
               :scenes="scenes"
               @scene-change="handleSceneChange"
+              @ready="onTourReady"
             />
 
             <!-- Galería de fotos normales (independiente del tour: puede coexistir) -->
@@ -345,6 +399,7 @@ function backToHome() {
                   :href="c.href"
                   target="_blank"
                   rel="noopener"
+                  @click="trackContact(c.type)"
                   class="btn w-full rounded-full"
                   :class="c.type === 'whatsapp' ? 'btn-neon' : ''"
                   :style="c.type !== 'whatsapp' ? 'background: #171717; color: #ffffff; border: none;' : ''"
@@ -353,7 +408,7 @@ function backToHome() {
                 </a>
               </div>
             </template>
-            <a v-else-if="listing.owner?.phone" :href="whatsappUrl" target="_blank" class="btn btn-neon w-full">
+            <a v-else-if="listing.owner?.phone" :href="whatsappUrl" target="_blank" class="btn btn-neon w-full" @click="trackContact('whatsapp')">
               Contactar por WhatsApp
             </a>
             <button v-if="canReport" type="button" class="text-xs underline py-3 self-start" style="color: var(--color-muted);" @click="showReport = true">
