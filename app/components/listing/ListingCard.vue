@@ -11,6 +11,7 @@ interface ListingCardData extends Listing {
   photos?: Pick<Photo, 'url' | 'thumbUrl'>[]
   scenes?: { previewUrl: string }[]
   owner?: { name: string }
+  featured?: boolean
 }
 
 const props = defineProps<{
@@ -80,6 +81,11 @@ const publishedDate = computed(() =>
         <span class="pill text-xs !py-1 !px-3 !border-0 shadow-sm" style="background: var(--color-neon); color: #0D0D0D;">
           360°
         </span>
+      </div>
+
+      <!-- Destacado (abajo a la izquierda: no tapa el tipo ni el 360°) -->
+      <div v-if="listing.featured" class="absolute bottom-3 left-3 z-10">
+        <FeaturedBadge />
       </div>
 
       <!-- Gradient overlay bottom -->

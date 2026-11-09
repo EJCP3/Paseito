@@ -9,7 +9,7 @@ const LIMIT = 24
 const { filters, apiQuery, activeCount, clearFilters } = useSearchFilters()
 
 const { data, pending, error } = useFetch<any>('/api/listings', {
-  query: computed(() => ({ ...apiQuery.value, page: 1, limit: LIMIT })),
+  query: computed(() => ({ ...apiQuery.value, featuredFirst: 'BADGE', page: 1, limit: LIMIT })),
   watch: [filters],
 })
 
@@ -25,7 +25,7 @@ const loadingMore = ref(false)
 async function loadMore() {
   loadingMore.value = true
   try {
-    const next: any = await $fetch('/api/listings', { query: { ...apiQuery.value, page: page.value + 1, limit: LIMIT } })
+    const next: any = await $fetch('/api/listings', { query: { ...apiQuery.value, featuredFirst: 'BADGE', page: page.value + 1, limit: LIMIT } })
     extra.value = [...extra.value, ...next.data]
     page.value++
   } finally {

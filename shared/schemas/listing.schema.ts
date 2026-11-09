@@ -200,6 +200,7 @@ export const ListingFiltersSchema = z.object({
   maxArea: z.number().min(0).optional(),
   search: z.string().max(200).optional(),
   sort: z.enum(['recent', 'price_asc', 'price_desc']).optional(),
+  featuredFirst: z.enum(['SIDEBAR', 'BADGE']).optional(), // prioridad de destacados (solo con orden 'recent')
   excludeId: z.string().optional(), // Para "otros anuncios" (nunca el actual)
   page: z.number().int().min(1).default(1),
   limit: z.number().int().min(1).max(48).default(12),

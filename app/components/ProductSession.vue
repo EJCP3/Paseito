@@ -466,6 +466,8 @@ defineExpose({
           >
             <img :src="coverImage(p)" :alt="p.title" width="400" height="400" loading="lazy" decoding="async" class="w-[80%] h-[80%] object-contain mix-blend-multiply" >
 
+            <FeaturedBadge v-if="p.featured" class="absolute top-3 left-3 lg:top-5 lg:left-5" />
+
             <!-- Hover Info -->
             <div class="absolute bottom-8 left-8 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
               <p class="text-black text-[22px] font-medium leading-tight tracking-tight" style="font-family: var(--font-body);">{{ p.title }}</p>

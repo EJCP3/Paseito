@@ -11,6 +11,7 @@ const rules: { id: string; test: (p: string, m: string) => boolean; limit: numbe
   { id: 'report', test: (p, m) => m === 'POST' && /^\/api\/listings\/[^/]+\/report\/?$/.test(p), limit: 5, windowMs: 60 * MIN },
   { id: 'events', test: (p, m) => m === 'POST' && /^\/api\/listings\/[^/]+\/events\/?$/.test(p), limit: 120, windowMs: 10 * MIN },
   { id: 'create', test: (p, m) => m === 'POST' && /^\/api\/listings\/?$/.test(p), limit: 10, windowMs: 60 * MIN },
+  { id: 'features', test: (p, m) => m === 'POST' && /^\/api\/features\/?$/.test(p), limit: 10, windowMs: 60 * MIN },
 ]
 const WRITE = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
 const store: RateStore = new Map()

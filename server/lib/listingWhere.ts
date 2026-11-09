@@ -3,9 +3,10 @@ import type { Prisma } from '@prisma/client'
 import type { ListingFiltersInput } from '../../shared/schemas/listing.schema'
 
 export function buildListingOrderBy(sort?: ListingFiltersInput['sort']): Prisma.ListingOrderByWithRelationInput[] {
-  if (sort === 'price_asc') return [{ price: 'asc' }, { createdAt: 'desc' }]
-  if (sort === 'price_desc') return [{ price: 'desc' }, { createdAt: 'desc' }]
-  return [{ createdAt: 'desc' }]
+  // id al final: desempate estable para paginar sin duplicados ni saltos
+  if (sort === 'price_asc') return [{ price: 'asc' }, { createdAt: 'desc' }, { id: 'desc' }]
+  if (sort === 'price_desc') return [{ price: 'desc' }, { createdAt: 'desc' }, { id: 'desc' }]
+  return [{ createdAt: 'desc' }, { id: 'desc' }]
 }
 
 export function buildListingWhere(f: Partial<ListingFiltersInput>): Prisma.ListingWhereInput {
