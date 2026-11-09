@@ -178,12 +178,15 @@ const showVerifyModal = ref(false)
               class="text-xs font-bold px-2.5 py-1 rounded-full text-white"
               :style="`background: ${STATUS_COLORS[listing.status] || '#6b7280'};`"
             >
-              {{ STATUS_LABELS[listing.status] || listing.status }}
+              {{ listing.adminPausedAt ? 'Pausado por moderación' : (STATUS_LABELS[listing.status] || listing.status) }}
+            </span>
+            <span v-if="listing.adminPausedAt" class="basis-full text-xs text-amber-700">
+              Motivo: {{ listing.adminPausedReason || 'sin especificar' }}
             </span>
             <NuxtLink :to="`/anuncio/${listing.slug}`" class="font-semibold underline">Ver</NuxtLink>
             <NuxtLink :to="`/publicar?id=${listing.id}`" class="font-semibold underline">Editar datos</NuxtLink>
             <NuxtLink :to="`/publicar/fotos?id=${listing.id}`" class="font-semibold underline">Fotos y tour</NuxtLink>
-            <NuxtLink v-if="listing.status === 'DRAFT'" :to="`/publicar/tour?id=${listing.id}`" class="font-semibold underline">Publicar</NuxtLink>
+            <NuxtLink v-if="listing.status === 'DRAFT' && !listing.adminPausedAt" :to="`/publicar/tour?id=${listing.id}`" class="font-semibold underline">Publicar</NuxtLink>
             <button
               v-if="listing.status === 'ACTIVE'"
               type="button"
@@ -192,7 +195,7 @@ const showVerifyModal = ref(false)
               @click="changeStatus(listing.id, 'pause')"
             >Pausar</button>
             <button
-              v-if="listing.status === 'PAUSED'"
+              v-if="listing.status === 'PAUSED' && !listing.adminPausedAt"
               type="button"
               class="font-semibold underline"
               :disabled="busyId === listing.id"

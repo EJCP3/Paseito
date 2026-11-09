@@ -6,7 +6,11 @@ export function canPublish(l: {
   photosCount: number
   scenesCount: number
   contactConsentAt: Date | null
+  adminPausedAt: Date | null
 }): { ok: true } | Fail {
+  if (l.adminPausedAt) {
+    return { ok: false, reason: 'Este anuncio está pausado por moderación y no se puede publicar' }
+  }
   if (l.status !== 'DRAFT' && l.status !== 'PAUSED') {
     return { ok: false, reason: 'Este anuncio no se puede publicar en su estado actual' }
   }

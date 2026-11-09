@@ -17,6 +17,18 @@ export const auth = betterAuth({
     revokeSessionsOnPasswordReset: true,
   },
   databaseHooks: {
+    user: {
+      // Todo registro (email o Google) pasa por el checkbox de términos del modal (RQ-LEGAL-01)
+      create: {
+        before: async (user, ctx) => {
+          // Registro por API directa sin consentimiento: rechazado. Google va por requestSignUp.
+          if (ctx?.path === '/sign-up/email' && ctx.body?.acceptTerms !== true) {
+            throw APIError.from('BAD_REQUEST', { message: 'Debes aceptar los Términos y la Política de privacidad', code: 'TERMS_REQUIRED' })
+          }
+          return { data: { ...user, termsAcceptedAt: new Date() } }
+        },
+      },
+    },
     session: {
       create: {
         // Fuente de verdad única de la suspensión: nuestro campo `suspended` (no `banned` del
@@ -52,12 +64,15 @@ export const auth = betterAuth({
       role: { type: 'string', required: false, input: false },
       suspended: { type: 'boolean', required: false, input: false },
       deletedAt: { type: 'date', required: false, input: false },
+      termsAcceptedAt: { type: 'date', required: false, input: false },
     },
   },
   socialProviders: {
     google: {
       clientId: process.env.GOOGLE_CLIENT_ID || '',
       clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
+      // Solo se crea cuenta con Google si el cliente pide requestSignUp (checkbox de términos marcado)
+      disableImplicitSignUp: true,
     },
   },
   plugins: [

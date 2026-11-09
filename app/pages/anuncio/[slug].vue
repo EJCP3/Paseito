@@ -51,7 +51,9 @@ function toggleSave() {
   if (listing.value) toggleFavorite(listing.value)
 }
 
-const { isAuthenticated, openLogin } = useAuth()
+const { isAuthenticated, openLogin, user: authUser } = useAuth()
+const showReport = ref(false)
+const canReport = computed(() => !!listing.value && listing.value.status === 'ACTIVE' && listing.value.owner?.id !== authUser.value?.id)
 const showFavoritesModal = ref(false)
 function openFavorites() {
   if (!isAuthenticated.value) return openLogin()
@@ -186,6 +188,9 @@ function backToHome() {
             >
               <Icon :name="saved ? 'heartFilled' : 'heart'" class="w-3.5 h-3.5 inline" />
               {{ saved ? 'Guardado' : 'Guardar' }}
+            </button>
+            <button v-if="canReport" type="button" class="text-xs underline py-1" style="color: var(--color-muted);" @click="showReport = true">
+              Reportar anuncio
             </button>
           </div>
         </div>
@@ -330,6 +335,9 @@ function backToHome() {
             <a v-else-if="listing.owner?.phone" :href="whatsappUrl" target="_blank" class="btn btn-neon w-full">
               Contactar por WhatsApp
             </a>
+            <button v-if="canReport" type="button" class="text-xs underline py-3 self-start" style="color: var(--color-muted);" @click="showReport = true">
+              Reportar anuncio
+            </button>
           </div>
 
           <!-- Otros anuncios (móvil: carrusel horizontal al final) -->
@@ -347,5 +355,6 @@ function backToHome() {
         </div>
       </div>
     </div>
+    <ReportModal v-if="canReport" :show="showReport" :listing-id="listing.id" @close="showReport = false" />
   </section>
 </template>

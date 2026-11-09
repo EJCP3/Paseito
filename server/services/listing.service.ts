@@ -193,7 +193,7 @@ async function ownedListingForStatus(id: string, ownerId: string) {
   const listing = await prisma.listing.findUnique({
     where: { id },
     select: {
-      ownerId: true, deletedAt: true, status: true, contactConsentAt: true,
+      ownerId: true, slug: true, deletedAt: true, status: true, contactConsentAt: true, adminPausedAt: true,
       _count: { select: { photos: true, scenes: true } },
     },
   })
@@ -213,19 +213,21 @@ export async function publishListing(id: string, ownerId: string, contactConsent
     photosCount: listing._count.photos,
     scenesCount: listing._count.scenes,
     contactConsentAt: contactConsent ? new Date() : listing.contactConsentAt,
+    adminPausedAt: listing.adminPausedAt,
   })
   if (!check.ok) throw createError({ statusCode: 400, statusMessage: check.reason })
   const next = nextOwnerStatus(listing.status, 'publish')
   if (!next.ok) throw createError({ statusCode: 400, statusMessage: next.reason })
 
-  return prisma.listing.update({
-    where: { id },
+  const { count } = await prisma.listing.updateMany({
+    where: { id, adminPausedAt: null, deletedAt: null, status: listing.status },
     data: {
       status: next.status as 'ACTIVE',
       ...(contactConsent && { contactConsentAt: new Date() }),
     },
-    select: { id: true, slug: true, status: true },
   })
+  if (count === 0) throw createError({ statusCode: 409, statusMessage: 'El anuncio cambió; recarga e inténtalo de nuevo' })
+  return { id, slug: listing.slug, status: next.status }
 }
 
 /**
@@ -240,17 +242,19 @@ export async function changeListingStatus(id: string, ownerId: string, action: '
       photosCount: listing._count.photos,
       scenesCount: listing._count.scenes,
       contactConsentAt: listing.contactConsentAt,
+      adminPausedAt: listing.adminPausedAt,
     })
     if (!check.ok) throw createError({ statusCode: 400, statusMessage: check.reason })
   }
   const next = nextOwnerStatus(listing.status, action)
   if (!next.ok) throw createError({ statusCode: 400, statusMessage: next.reason })
 
-  return prisma.listing.update({
-    where: { id },
+  const { count } = await prisma.listing.updateMany({
+    where: { id, adminPausedAt: null, deletedAt: null, status: listing.status },
     data: { status: next.status as 'ACTIVE' | 'PAUSED' },
-    select: { id: true, slug: true, status: true },
   })
+  if (count === 0) throw createError({ statusCode: 409, statusMessage: 'El anuncio cambió; recarga e inténtalo de nuevo' })
+  return { id, slug: listing.slug, status: next.status }
 }
 
 /**

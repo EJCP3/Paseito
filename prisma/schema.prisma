@@ -269,6 +269,10 @@ model Listing {
 
   deletedAt DateTime? // borrado lógico; siempre se filtra junto a status
 
+  // Pausa por moderación: el dueño no puede reanudar mientras adminPausedAt != null
+  adminPausedAt     DateTime?
+  adminPausedReason String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

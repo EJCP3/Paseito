@@ -8,6 +8,7 @@ const rules: { id: string; test: (p: string, m: string) => boolean; limit: numbe
   { id: 'scenes', test: (p, m) => m === 'POST' && /^\/api\/tours\/scenes\/?$/.test(p), limit: 30, windowMs: 10 * MIN },
   { id: 'geocode', test: (p) => p.startsWith('/api/geocode'), limit: 20, windowMs: MIN },
   { id: 'nearby', test: (p) => /^\/api\/listings\/(?:[^/]+\/)?nearby-places/.test(p), limit: 10, windowMs: MIN },
+  { id: 'report', test: (p, m) => m === 'POST' && /^\/api\/listings\/[^/]+\/report\/?$/.test(p), limit: 5, windowMs: 60 * MIN },
   { id: 'create', test: (p, m) => m === 'POST' && /^\/api\/listings\/?$/.test(p), limit: 10, windowMs: 60 * MIN },
 ]
 const WRITE = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
