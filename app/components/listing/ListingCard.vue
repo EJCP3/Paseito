@@ -22,7 +22,7 @@ const props = defineProps<{
 const coverImage = computed(() => {
   if (props.listing.photos?.length) return props.listing.photos[0]!.thumbUrl || props.listing.photos[0]!.url
   if (props.listing.scenes?.length) return props.listing.scenes[0]!.previewUrl
-  return '/images/hero/hero-1.webp' // Fallback
+  return '/images/portada1.webp' // Fallback (anuncio sin fotos ni escenas)
 })
 const coverSrc = computed(() => cld(coverImage.value, 'f_auto,q_auto,c_limit,w_600'))
 
