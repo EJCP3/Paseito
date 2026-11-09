@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, nextTick } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRoute } from '#app'
 import BentoGalleryHero from '~/components/hero/BentoGalleryHero.vue'
 import ProductSession from '~/components/ProductSession.vue'
@@ -30,9 +30,9 @@ const handleHeroSelect = (imageUrl: string) => {
 <template>
   <div>
     <!-- Hero Section (GSAP Flip Gallery) -->
-    <BentoGalleryHero v-if="!skipHero" @selectImage="handleHeroSelect" />
+    <BentoGalleryHero v-if="!skipHero" @select-image="handleHeroSelect" />
 
     <!-- E-Commerce Immersive Storefront -->
-    <ProductSession ref="productSessionRef" id="product-session" />
+    <ProductSession id="product-session" ref="productSessionRef" />
   </div>
 </template>

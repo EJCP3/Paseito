@@ -17,6 +17,7 @@ export default defineNuxtConfig({
   modules: [
     '@pinia/nuxt',
     '@nuxt/image',
+    '@nuxt/eslint',
   ],
 
   // Component Scanning Configuration
@@ -42,14 +43,14 @@ export default defineNuxtConfig({
     // Nombre/modo de la transición — el CSS real vive en app.vue (.page-enter-active).
     pageTransition: { name: 'page', mode: 'out-in' },
     head: {
-      title: 'Paseito — Marketplace de Inmuebles y Vehículos con Tours 360°',
+      title: 'Paseito — Marketplace de Inmuebles con Tours 360°',
       htmlAttrs: { lang: 'es' },
       meta: [
         { charset: 'utf-8' },
         { name: 'viewport', content: 'width=device-width, initial-scale=1' },
         {
           name: 'description',
-          content: 'Encuentra tu próximo hogar o vehículo con recorridos virtuales 360°. Explora apartamentos, casas y autos desde cualquier lugar.',
+          content: 'Encuentra tu próximo hogar con recorridos virtuales 360°. Explora apartamentos, casas y villas desde cualquier lugar.',
         },
         { name: 'theme-color', content: '#B9FF66' },
       ],

@@ -17,7 +17,7 @@ export const useTourEditorStore = defineStore('tourEditor', () => {
   function setScenes(newScenes: SceneWithHotspots[]) {
     scenes.value = newScenes
     if (newScenes.length && !activeSceneId.value) {
-      activeSceneId.value = newScenes[0].id
+      activeSceneId.value = newScenes[0]!.id
     }
   }
 
@@ -39,7 +39,7 @@ export const useTourEditorStore = defineStore('tourEditor', () => {
   function removeScene(id: string) {
     scenes.value = scenes.value.filter((s) => s.id !== id)
     if (activeSceneId.value === id && scenes.value.length) {
-      activeSceneId.value = scenes.value[0].id
+      activeSceneId.value = scenes.value[0]!.id
     }
   }
 

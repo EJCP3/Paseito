@@ -33,43 +33,43 @@ function horizontalLoop(items: HTMLElement[], config: any = {}) {
     onReverseComplete: () => tl.totalTime(tl.rawTime() + tl.duration() * 100),
   })
   const length = items.length
-  const startX = items[0].offsetLeft
+  const startX = items[0]!.offsetLeft
   const widths: number[] = []
   const xPercents: number[] = []
   const pixelsPerSecond = (config.speed || 1) * 100
   const snap = config.snap === false ? (v: number) => v : gsap.utils.snap(config.snap || 1)
-  let totalWidth: number, curX: number, distanceToStart: number, distanceToLoop: number, item: HTMLElement, i: number
+  let curX: number, distanceToStart: number, distanceToLoop: number, item: HTMLElement, i: number
 
   gsap.set(items, {
     xPercent: (i: number, el: HTMLElement) => {
-      const w = (widths[i] = parseFloat(gsap.getProperty(el, 'width', 'px')))
+      const w = (widths[i] = parseFloat(String(gsap.getProperty(el, 'width', 'px'))))
       xPercents[i] = snap(
-        (parseFloat(gsap.getProperty(el, 'x', 'px')) / w) * 100 + gsap.getProperty(el, 'xPercent')
+        (parseFloat(String(gsap.getProperty(el, 'x', 'px'))) / w) * 100 + Number(gsap.getProperty(el, 'xPercent'))
       )
       return xPercents[i]
     },
   })
   gsap.set(items, { x: 0 })
-  totalWidth =
-    items[length - 1].offsetLeft +
-    (xPercents[length - 1] / 100) * widths[length - 1] -
+  const totalWidth =
+    items[length - 1]!.offsetLeft +
+    (xPercents[length - 1]! / 100) * widths[length - 1]! -
     startX +
-    items[length - 1].offsetWidth * gsap.getProperty(items[length - 1], 'scaleX') +
+    items[length - 1]!.offsetWidth * Number(gsap.getProperty(items[length - 1]!, 'scaleX')) +
     (parseFloat(config.paddingRight) || 0)
 
   for (i = 0; i < length; i++) {
-    item = items[i]
-    curX = (xPercents[i] / 100) * widths[i]
+    item = items[i]!
+    curX = (xPercents[i]! / 100) * widths[i]!
     distanceToStart = item.offsetLeft + curX - startX
-    distanceToLoop = distanceToStart + widths[i] * gsap.getProperty(item, 'scaleX')
+    distanceToLoop = distanceToStart + widths[i]! * Number(gsap.getProperty(item, 'scaleX'))
     tl.to(
       item,
-      { xPercent: snap((curX - distanceToLoop) / widths[i] * 100), duration: distanceToLoop / pixelsPerSecond },
+      { xPercent: snap((curX - distanceToLoop) / widths[i]! * 100), duration: distanceToLoop / pixelsPerSecond },
       0
     )
       .fromTo(
         item,
-        { xPercent: snap((curX - distanceToLoop + totalWidth) / widths[i] * 100) },
+        { xPercent: snap((curX - distanceToLoop + totalWidth) / widths[i]! * 100) },
         {
           xPercent: xPercents[i],
           duration: (curX - distanceToLoop + totalWidth - curX) / pixelsPerSecond,

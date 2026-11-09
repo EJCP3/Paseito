@@ -92,12 +92,12 @@ async function handleContinue() {
         <div class="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold border" style="border-color: var(--color-border);">✓</div>
         <span class="text-sm">Datos</span>
       </div>
-      <div class="flex-1 h-px" style="background: var(--color-neon);"></div>
+      <div class="flex-1 h-px" style="background: var(--color-neon);"/>
       <div class="flex items-center gap-2">
         <div class="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold" style="background: var(--color-neon); color: #0D0D0D;">2</div>
         <span class="text-sm font-semibold">Fotos</span>
       </div>
-      <div class="flex-1 h-px" style="background: var(--color-border);"></div>
+      <div class="flex-1 h-px" style="background: var(--color-border);"/>
       <div class="flex items-center gap-2 opacity-40">
         <div class="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold border" style="border-color: var(--color-border);">3</div>
         <span class="text-sm">Tour 360°</span>
@@ -108,25 +108,25 @@ async function handleContinue() {
       Foto de portada
     </h1>
     <p class="mb-8" style="color: var(--color-muted);">
-      Sube la foto principal de tu propiedad o vehículo
+      Sube la foto principal de tu inmueble
     </p>
 
     <!-- Upload area -->
     <label
       v-if="!previewUrl"
+      id="photo-upload-area"
       class="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-2xl cursor-pointer transition-colors hover:border-[var(--color-neon)]"
       style="border-color: var(--color-border); background: var(--color-surface);"
-      id="photo-upload-area"
     >
       <Icon name="bag" class="w-9 h-9 mb-2" stroke-width="1.5" style="color: var(--color-muted);" />
       <span class="text-sm font-semibold">Arrastra una foto aquí o haz clic para seleccionar</span>
       <span class="text-xs mt-1" style="color: var(--color-muted);">JPG, PNG, WebP — máximo 10MB</span>
-      <input type="file" class="hidden" accept="image/*" @change="handleFile" />
+      <input type="file" class="hidden" accept="image/*" @change="handleFile" >
     </label>
 
     <!-- Cover preview -->
     <div v-else class="relative w-full aspect-video rounded-2xl overflow-hidden">
-      <img :src="previewUrl" alt="Foto de portada" class="w-full h-full object-cover" />
+      <img :src="previewUrl" alt="Foto de portada" class="w-full h-full object-cover" >
       <button
         type="button"
         class="absolute top-3 right-3 w-9 h-9 rounded-full bg-red-500 text-white flex items-center justify-center shadow-md hover:bg-red-600 transition-colors"
@@ -144,7 +144,7 @@ async function handleContinue() {
       <NuxtLink to="/publicar" class="btn rounded-full flex-1" style="border: 1px solid var(--color-border); background: transparent; color: #171717;">
         Volver
       </NuxtLink>
-      <button class="btn btn-neon flex-1" :disabled="uploading || loading" @click="handleContinue" id="photos-continue">
+      <button id="photos-continue" class="btn btn-neon flex-1" :disabled="uploading || loading" @click="handleContinue">
         {{ uploading ? 'Subiendo…' : 'Continuar → Tour 360°' }}
       </button>
     </div>

@@ -7,7 +7,6 @@ export interface Announcement {
 function formatLocation(l: any): string {
   if (l.city && l.sector) return `${l.sector}, ${l.city}`
   if (l.city) return l.city
-  if (l.brand && l.model) return `${l.brand} ${l.model}`
   return ''
 }
 

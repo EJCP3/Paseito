@@ -8,7 +8,7 @@ import locations from '../data/rd-locations.json'
 import { BUILDING_AMENITIES, VILLA_SERVICES } from '../types/enums'
 
 // Enums como Zod
-export const ListingTypeSchema = z.enum(['APARTMENT', 'HOUSE', 'VILLA', 'VEHICLE'])
+export const ListingTypeSchema = z.enum(['APARTMENT', 'HOUSE', 'VILLA'])
 export const ListingStatusSchema = z.enum(['DRAFT', 'ACTIVE', 'SOLD', 'PAUSED'])
 export const ListingModeSchema = z.enum(['SALE', 'RENT_LONG_TERM', 'RENT_DAILY'])
 export const FurnishedStatusSchema = z.enum(['NONE', 'PARTIAL', 'FULL'])
@@ -119,31 +119,13 @@ export const villaSchema = listingBaseSchema.extend({
 })
 
 // ============================================
-// Vehículo — sin cambios de este feature, Próximamente en la UI
-// ============================================
-export const vehicleSchema = z.object({
-  type: z.literal('VEHICLE'),
-  title: z.string().min(5).max(120),
-  description: z.string().min(20).max(5000),
-  price: z.number().positive('El precio debe ser mayor a 0'),
-  currency: z.string().default('USD'),
-  brand: z.string().max(50),
-  model: z.string().max(50),
-  year: z.number().int().min(1900).max(new Date().getFullYear() + 1),
-  mileageKm: z.number().int().min(0).optional(),
-  contacts: ContactsArraySchema.optional(),
-})
-
-// ============================================
 // Unión discriminada por `type` + validaciones cruzadas
 // ============================================
 export const CreateListingSchema = z
-  .discriminatedUnion('type', [apartmentSchema, houseSchema, villaSchema, vehicleSchema])
+  .discriminatedUnion('type', [apartmentSchema, houseSchema, villaSchema])
   .superRefine((data, ctx) => {
-    if (data.type !== 'VEHICLE') {
-      checkLocation(data, ctx)
-      checkCoordinates(data, ctx)
-    }
+    checkLocation(data, ctx)
+    checkCoordinates(data, ctx)
   })
 
 export type CreateListingInput = z.infer<typeof CreateListingSchema>
@@ -201,11 +183,6 @@ export const UpdateListingSchema = z.object({
   cancellationPolicy: z.enum(['flexible', 'moderada', 'estricta']).optional(),
   checkInTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).optional(),
   checkOutTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).optional(),
-
-  brand: z.string().max(50).optional(),
-  model: z.string().max(50).optional(),
-  year: z.number().int().min(1900).optional(),
-  mileageKm: z.number().int().min(0).optional(),
 })
 
 // Schema para filtros de búsqueda

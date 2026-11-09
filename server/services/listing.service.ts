@@ -1,18 +1,8 @@
 // Service — Listings CRUD
 // Toda la lógica de negocio de listados vive aquí
 import type { ListingFiltersInput, CreateListingInput, UpdateListingInput } from '~~/shared/schemas/listing.schema'
-import { mockListings } from '~~/server/utils/mockData'
 import { buildListingWhere } from '~~/server/lib/listingWhere'
 import { publicCoords } from '~~/server/lib/coords'
-
-/**
- * Verifica si debemos usar datos de prueba (mock)
- */
-function useMock(): boolean {
-  if (process.env.NODE_ENV === 'production') return false
-  const url = process.env.DATABASE_URL
-  return !url || url.includes('user:password')
-}
 
 /**
  * Genera un slug legible a partir del título
@@ -36,59 +26,8 @@ function generateSlug(title: string): string {
 /**
  * Obtener listados con filtros y paginación
  */
-function getMockListings(filters: ListingFiltersInput) {
-  const { type, city, sector, minPrice, maxPrice, search, excludeId, page, limit } = filters
-
-  // Filtrado de mock data en memoria
-  let data = [...mockListings]
-
-  if (excludeId) {
-    data = data.filter(l => l.id !== excludeId)
-  }
-  if (type) {
-    data = data.filter(l => l.type === type)
-  }
-  if (city) {
-    data = data.filter(l => l.city?.toLowerCase().includes(city.toLowerCase()))
-  }
-  if (sector) {
-    data = data.filter(l => l.sector?.toLowerCase().includes(sector.toLowerCase()))
-  }
-  if (minPrice !== undefined) {
-    data = data.filter(l => Number(l.price) >= minPrice)
-  }
-  if (maxPrice !== undefined) {
-    data = data.filter(l => Number(l.price) <= maxPrice)
-  }
-  if (search) {
-    const q = search.toLowerCase()
-    data = data.filter(l =>
-      l.title.toLowerCase().includes(q) ||
-      l.description.toLowerCase().includes(q) ||
-      l.city?.toLowerCase().includes(q) ||
-      l.sector?.toLowerCase().includes(q)
-    )
-  }
-
-  const total = data.length
-  const paginatedData = data.slice((page - 1) * limit, page * limit)
-
-  return {
-    data: paginatedData.map((l) => publicCoords(l as any)),
-    total,
-    page,
-    limit,
-    totalPages: Math.ceil(total / limit),
-  }
-}
-
 export async function getListings(filters: ListingFiltersInput) {
   const { page, limit } = filters
-
-  if (useMock()) {
-    console.log('[Listings Service] Usando datos de prueba (mock)')
-    return getMockListings(filters)
-  }
 
   const where = buildListingWhere(filters)
 
@@ -125,10 +64,6 @@ export async function getListings(filters: ListingFiltersInput) {
  * Obtener un listado por slug con todas sus relaciones
  */
 export async function getListingBySlug(slug: string) {
-  if (useMock()) {
-    return mockListings.find(l => l.slug === slug) || null
-  }
-
   try {
     const listing = await prisma.listing.findUnique({
       where: { slug },
@@ -162,10 +97,6 @@ export async function getListingBySlug(slug: string) {
  * Obtener un listado por ID
  */
 export async function getListingById(id: string) {
-  if (useMock()) {
-    return mockListings.find(l => l.id === id) || null
-  }
-
   try {
     return await prisma.listing.findUnique({
       where: { id },
@@ -176,6 +107,7 @@ export async function getListingById(id: string) {
           include: { hotspots: true },
         },
         nearbyPlaces: { orderBy: { distanceM: 'asc' } },
+        availability: { orderBy: { startDate: 'asc' } },
         owner: { select: { id: true, name: true, phone: true } },
       },
     })
@@ -189,10 +121,6 @@ export async function getListingById(id: string) {
  * Obtener todos los anuncios de un usuario (cualquier estado, para "Mi cuenta")
  */
 export async function getListingsByOwner(ownerId: string) {
-  if (useMock()) {
-    return mockListings.filter(l => l.ownerId === ownerId)
-  }
-
   try {
     return await prisma.listing.findMany({
       where: { ownerId },
@@ -216,26 +144,9 @@ export async function createListing(data: CreateListingInput, ownerId: string) {
   // Las villas siempre son alquiler por día — no lo elige el usuario en el form.
   const mode = data.type === 'VILLA' ? 'RENT_DAILY' : (data as any).mode
 
-  if (useMock()) {
-    const newListing: any = {
-      id: `listing-${Date.now()}`,
-      slug,
-      ownerId,
-      status: 'ACTIVE',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      ...data,
-      mode,
-      photos: [],
-      scenes: [],
-      owner: { id: ownerId, name: 'Usuario Demo', phone: '+18095551234' }
-    }
-    mockListings.push(newListing)
-    return newListing
-  }
 
   // No hay paso de moderación/aprobación: el listado queda visible de inmediato.
-  // `data` es la unión discriminada (apartamento/casa/villa/vehículo): cada
+  // `data` es la unión discriminada (apartamento/casa/villa): cada
   // rama trae solo sus propios campos, todos columnas opcionales del modelo.
   return prisma.listing.create({
     data: {
@@ -253,15 +164,6 @@ export async function createListing(data: CreateListingInput, ownerId: string) {
  * Actualizar un listado (solo el dueño)
  */
 export async function updateListing(id: string, data: UpdateListingInput, ownerId: string) {
-  if (useMock()) {
-    const idx = mockListings.findIndex(l => l.id === id)
-    if (idx !== -1) {
-      mockListings[idx] = { ...mockListings[idx], ...data } as any
-      return mockListings[idx]
-    }
-    throw createError({ statusCode: 404, statusMessage: 'Anuncio no encontrado' })
-  }
-
   // Verificar propiedad
   const listing = await prisma.listing.findUnique({ where: { id }, select: { ownerId: true } })
   if (!listing || listing.ownerId !== ownerId) {
@@ -278,15 +180,6 @@ export async function updateListing(id: string, data: UpdateListingInput, ownerI
  * Eliminar un listado (solo el dueño)
  */
 export async function deleteListing(id: string, ownerId: string) {
-  if (useMock()) {
-    const idx = mockListings.findIndex(l => l.id === id)
-    if (idx !== -1) {
-      mockListings.splice(idx, 1)
-      return { success: true }
-    }
-    throw createError({ statusCode: 404, statusMessage: 'Anuncio no encontrado' })
-  }
-
   const listing = await prisma.listing.findUnique({ where: { id }, select: { ownerId: true } })
   if (!listing || listing.ownerId !== ownerId) {
     throw createError({ statusCode: 403, statusMessage: 'No tienes permiso para eliminar este anuncio' })

@@ -140,12 +140,6 @@ export interface Listing {
   checkInTime?: string | null
   checkOutTime?: string | null
 
-  // Vehículo
-  brand?: string | null
-  model?: string | null
-  year?: number | null
-  mileageKm?: number | null
-
   // Redes/contactos que el anuncio muestra
   contacts?: ContactLink[] | null
 
@@ -183,51 +177,4 @@ export interface SellerProfile {
   user: Pick<User, 'id' | 'name' | 'image' | 'verificationTier' | 'createdAt'>
   activeListings: (ListingWithPhotos & { scenes: Pick<Scene, 'previewUrl'>[] })[]
   totalSaved: number
-}
-
-// ============================================
-// DTOs para API
-// ============================================
-
-export interface ListingCreateInput {
-  type: ListingType
-  title: string
-  description: string
-  price: number
-  currency?: string
-  areaM2?: number
-  bedrooms?: number
-  bathrooms?: number
-  parking?: number
-  sector?: string
-  city?: string
-  brand?: string
-  model?: string
-  year?: number
-  mileageKm?: number
-}
-
-export interface ListingUpdateInput extends Partial<ListingCreateInput> {
-  status?: ListingStatus
-}
-
-export interface ListingFilters {
-  type?: ListingType
-  status?: ListingStatus
-  city?: string
-  sector?: string
-  minPrice?: number
-  maxPrice?: number
-  minBedrooms?: number
-  search?: string
-  page?: number
-  limit?: number
-}
-
-export interface PaginatedResponse<T> {
-  data: T[]
-  total: number
-  page: number
-  limit: number
-  totalPages: number
 }

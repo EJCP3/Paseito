@@ -9,7 +9,6 @@ import { MarkersPlugin } from '@photo-sphere-viewer/markers-plugin'
 import '@photo-sphere-viewer/core/index.css'
 import '@photo-sphere-viewer/markers-plugin/index.css'
 import type { SceneWithHotspots } from '~~/shared/types/listing'
-import type { HotspotInput } from '~~/shared/schemas/tour.schema'
 import { icons } from '~/assets/icons'
 import { escapeHtml } from '~~/shared/utils/escapeHtml'
 
@@ -61,7 +60,7 @@ onMounted(() => {
 // Renderizar markers de la escena activa
 function renderMarkers() {
   if (!viewer) return
-  const markersPlugin = viewer.getPlugin(MarkersPlugin)
+  const markersPlugin = viewer.getPlugin<MarkersPlugin>(MarkersPlugin)
   if (!markersPlugin) return
 
   markersPlugin.clearMarkers()

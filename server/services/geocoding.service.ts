@@ -88,8 +88,8 @@ export function extractCoordsFromUrl(url: string): { lat: number; lng: number } 
 
   const build = (m: RegExpMatchArray | null) => {
     if (!m) return null
-    const lat = parseFloat(m[1])
-    const lng = parseFloat(m[2])
+    const lat = parseFloat(m[1]!)
+    const lng = parseFloat(m[2]!)
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null
     if (Math.abs(lat) > 90 || Math.abs(lng) > 180) return null
     return { lat, lng }

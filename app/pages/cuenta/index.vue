@@ -15,7 +15,7 @@ const initials = computed(() => {
   if (!name) return '?'
   const parts = name.split(/\s+/)
   return parts.length > 1
-    ? (parts[0][0] + parts[1][0]).toUpperCase()
+    ? (parts[0]![0]! + parts[1]![0]!).toUpperCase()
     : name.slice(0, 2).toUpperCase()
 })
 
@@ -65,7 +65,7 @@ const showVerifyModal = ref(false)
               :alt="user.name || 'Usuario'"
               referrerpolicy="no-referrer"
               class="w-16 h-16 rounded-full object-cover"
-            />
+            >
             <div v-else class="w-16 h-16 rounded-full flex items-center justify-center text-xl font-bold" style="background: var(--color-neon); color: #0D0D0D;">
               {{ initials }}
             </div>
@@ -94,10 +94,10 @@ const showVerifyModal = ref(false)
         </div>
 
         <button
+          id="edit-profile-btn"
           class="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 transition-colors hover:bg-black/5"
           style="border: 1px solid var(--color-border);"
           aria-label="Editar cuenta"
-          id="edit-profile-btn"
           @click="showEditModal = true"
         >
           <Icon name="pencil" class="w-5 h-5" stroke="#171717" />
@@ -122,7 +122,7 @@ const showVerifyModal = ref(false)
         <Icon name="camera" class="w-12 h-12 mx-auto mb-4" stroke-width="1.5" style="color: var(--color-muted);" />
         <p class="font-bold" style="font-family: var(--font-heading);">No tienes anuncios aún</p>
         <p class="text-sm mt-1 mb-6" style="color: var(--color-muted);">
-          Publica tu primera propiedad o vehículo con tour 360°
+          Publica tu primer inmueble con tour 360°
         </p>
         <NuxtLink to="/publicar" class="btn btn-neon">
           Publicar ahora

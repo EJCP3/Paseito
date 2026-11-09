@@ -44,7 +44,7 @@ async function handleSubmit() {
   await authClient.signUp.email({
     email: result.data.email,
     password: result.data.password,
-    name: result.data.email.split('@')[0],
+    name: result.data.email.split('@')[0] ?? result.data.email,
   }, {
     onSuccess: () => afterAuthSuccess(),
     onError: (ctx) => {
@@ -70,7 +70,7 @@ function switchToLogin() {
           type="email"
           class="auth-input"
           placeholder="Correo"
-        />
+        >
         <p v-if="fieldErrors.email" class="text-xs text-red-600 mt-1">{{ fieldErrors.email }}</p>
       </div>
 
@@ -80,7 +80,7 @@ function switchToLogin() {
           type="password"
           class="auth-input"
           placeholder="Contraseña"
-        />
+        >
         <p v-if="fieldErrors.password" class="text-xs text-red-600 mt-1">{{ fieldErrors.password }}</p>
       </div>
 
@@ -90,7 +90,7 @@ function switchToLogin() {
           type="password"
           class="auth-input"
           placeholder="Repetir contraseña"
-        />
+        >
         <p v-if="fieldErrors.confirmPassword" class="text-xs text-red-600 mt-1">{{ fieldErrors.confirmPassword }}</p>
       </div>
 

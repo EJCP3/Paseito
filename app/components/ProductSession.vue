@@ -55,7 +55,7 @@ const initials = computed(() => {
   if (!name) return '?'
   const parts = name.split(/\s+/)
   return parts.length > 1
-    ? (parts[0][0] + parts[1][0]).toUpperCase()
+    ? (parts[0]![0]! + parts[1]![0]!).toUpperCase()
     : name.slice(0, 2).toUpperCase()
 })
 
@@ -85,12 +85,9 @@ const openProductByImage = (_imageUrl: string) => {
 }
 
 // --- FILTER ISLAND LOGIC ---
-// Vehículo no está disponible todavía (ver publicar/index.vue), se excluye del filtro.
 const filterCategories = [
   { key: 'ALL', label: 'Todos' },
-  ...Object.values(ListingType)
-    .filter(t => t !== ListingType.VEHICLE)
-    .map(t => ({ key: t, label: ListingTypeLabels[t] })),
+  ...Object.values(ListingType).map(t => ({ key: t, label: ListingTypeLabels[t] })),
 ]
 const activeCategory = ref('ALL')
 const activeCategoryLabel = computed(() => filterCategories.find(c => c.key === activeCategory.value)?.label ?? 'Todos')
@@ -173,7 +170,8 @@ watch(filteredProducts, async () => {
   await nextTick()
   ScrollTrigger.refresh()
   if (batchInitialized.value) {
-    ctx ? ctx.add(() => initBatchAnimations()) : initBatchAnimations()
+    if (ctx) ctx.add(() => initBatchAnimations())
+    else initBatchAnimations()
   }
 })
 
@@ -181,7 +179,8 @@ const batchInitialized = ref(false)
 watch(isSectionVisible, (visible) => {
   if (visible && !batchInitialized.value) {
     batchInitialized.value = true
-    ctx ? ctx.add(() => initBatchAnimations(!skipIntroReveal)) : initBatchAnimations(!skipIntroReveal)
+    if (ctx) ctx.add(() => initBatchAnimations(!skipIntroReveal))
+    else initBatchAnimations(!skipIntroReveal)
   }
 })
 
@@ -197,7 +196,7 @@ onMounted(() => {
 
   // Observe if ProductSession is visible on screen
   sectionObserver = new IntersectionObserver((entries) => {
-    isSectionVisible.value = entries[0].isIntersecting
+    isSectionVisible.value = entries[0]!.isIntersecting
   }, { threshold: 0.1 })
   
   if (sectionRef.value) {
@@ -254,21 +253,21 @@ defineExpose({
 </script>
 
 <template>
-  <section class="relative w-full bg-[var(--color-surface)] min-h-screen" ref="sectionRef">
+  <section ref="sectionRef" class="relative w-full bg-[var(--color-surface)] min-h-screen">
 
     <!-- DESKTOP STICKY HEADER — filtro (centro) + sesión (derecha). Sticky nativo: sin JS, sin rebote. -->
     <div v-show="isSectionVisible" class="hidden lg:block sticky top-0 h-0 z-[1200] pointer-events-none">
       <!-- Fondo sobre el área de contenido para que las imágenes pasen limpio por debajo -->
-      <div class="absolute top-0 right-0 h-24 pointer-events-none" style="left: 32%; background: var(--color-surface);"></div>
+      <div class="absolute top-0 right-0 h-24 pointer-events-none" style="left: 32%; background: var(--color-surface);"/>
 
       <!-- Filtro (centrado en el viewport) -->
       <div class="absolute top-6 left-1/2 -translate-x-1/2 flex flex-col items-center">
         <!-- The island -->
-        <div class="island pointer-events-auto relative flex items-center justify-between p-1 bg-white border border-gray-200 rounded-full whitespace-nowrap overflow-hidden text-black transition-colors shadow-2xl" ref="islandRef" style="width: 50px; height: 50px;">
+        <div ref="islandRef" class="island pointer-events-auto relative flex items-center justify-between p-1 bg-white border border-gray-200 rounded-full whitespace-nowrap overflow-hidden text-black transition-colors shadow-2xl" style="width: 50px; height: 50px;">
           <div class="island-logo-cont relative w-0 h-5 pointer-events-none flex items-center">
             <span class="island-logo absolute opacity-0 font-medium ml-4 text-[14px]" style="font-family: var(--font-body);">Filter: {{ activeCategoryLabel }}</span>
           </div>
-          <button @click="toggleFilter" class="menu-btn w-[42px] h-[42px] bg-transparent border-none cursor-pointer flex items-center justify-end flex-shrink-0" id="menuToggle">
+          <button id="menuToggle" class="menu-btn w-[42px] h-[42px] bg-transparent border-none cursor-pointer flex items-center justify-end flex-shrink-0" @click="toggleFilter">
             <div class="button-cont w-[42px] h-[42px] flex items-center justify-center rounded-full transition-colors hover:bg-gray-100">
               <Icon id="menuIcon" name="menuMorph" width="16" height="16" viewBox="0 0 16 16" class="overflow-visible block" />
             </div>
@@ -279,7 +278,7 @@ defineExpose({
         <div class="menu-panel absolute top-16 invisible pointer-events-auto bg-white border border-gray-100 shadow-2xl rounded-[24px] p-2 w-[90vw] max-w-[400px]">
           <!-- Paso 1: tipo de anuncio -->
           <nav v-if="filterStep === 'category'" class="flex flex-col">
-            <a v-for="(cat, i) in filterCategories" :key="cat.key" @click.prevent="selectCategory(cat.key)" class="menu-link flex items-center justify-between p-4 rounded-xl no-underline text-gray-500 font-medium text-[16px] hover:text-black transition-colors cursor-pointer" :class="activeCategory === cat.key ? 'text-black bg-gray-100' : ''">
+            <a v-for="(cat, i) in filterCategories" :key="cat.key" class="menu-link flex items-center justify-between p-4 rounded-xl no-underline text-gray-500 font-medium text-[16px] hover:text-black transition-colors cursor-pointer" :class="activeCategory === cat.key ? 'text-black bg-gray-100' : ''" @click.prevent="selectCategory(cat.key)">
               <span style="font-family: var(--font-body);">{{ cat.label }}</span>
               <span class="link-num text-[12px] text-gray-400 font-mono">0{{ i+1 }}</span>
             </a>
@@ -309,9 +308,9 @@ defineExpose({
               <div>
                 <label class="text-[11px] font-bold uppercase tracking-wider text-gray-400 block mb-1">Precio</label>
                 <div class="flex items-center gap-2">
-                  <input v-model.number="filterMinPrice" type="number" placeholder="Mín." class="w-full text-sm px-3 py-2 rounded-full border border-gray-200 focus:outline-none focus:border-black" />
+                  <input v-model.number="filterMinPrice" type="number" placeholder="Mín." class="w-full text-sm px-3 py-2 rounded-full border border-gray-200 focus:outline-none focus:border-black" >
                   <span class="text-gray-300">—</span>
-                  <input v-model.number="filterMaxPrice" type="number" placeholder="Máx." class="w-full text-sm px-3 py-2 rounded-full border border-gray-200 focus:outline-none focus:border-black" />
+                  <input v-model.number="filterMaxPrice" type="number" placeholder="Máx." class="w-full text-sm px-3 py-2 rounded-full border border-gray-200 focus:outline-none focus:border-black" >
                 </div>
               </div>
 
@@ -415,7 +414,7 @@ defineExpose({
       <!-- Right: Icons -->
       <div class="flex items-center gap-5">
         <Icon name="bag" width="24" height="24" stroke-width="1.5" class="text-black cursor-pointer" />
-        <div @click="isMobileMenuOpen = true" class="cursor-pointer text-black">
+        <div class="cursor-pointer text-black" @click="isMobileMenuOpen = true">
           <Icon name="menu" width="26" height="26" stroke-width="1.5" />
         </div>
       </div>
@@ -445,7 +444,7 @@ defineExpose({
             class="product-card invisible opacity-0 bg-[#e3e3df] rounded-2xl lg:rounded-[32px] aspect-square flex items-center justify-center cursor-pointer relative group"
             @click="selectProduct(p)"
           >
-            <img :src="coverImage(p)" :alt="p.title" class="w-[80%] h-[80%] object-contain mix-blend-multiply" />
+            <img :src="coverImage(p)" :alt="p.title" class="w-[80%] h-[80%] object-contain mix-blend-multiply" >
 
             <!-- Hover Info -->
             <div class="absolute bottom-8 left-8 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
@@ -461,7 +460,7 @@ defineExpose({
     <Teleport to="body">
       <Transition name="fade">
         <div v-show="isSectionVisible" class="hidden lg:block menu-overlay fixed inset-0 z-[900] pointer-events-none">
-          <div class="menu-backdrop absolute inset-0 bg-transparent opacity-0" :class="isFilterOpen ? 'pointer-events-auto' : 'pointer-events-none'" @click="closeFilter"></div>
+          <div class="menu-backdrop absolute inset-0 bg-transparent opacity-0" :class="isFilterOpen ? 'pointer-events-auto' : 'pointer-events-none'" @click="closeFilter"/>
         </div>
       </Transition>
 
@@ -472,7 +471,7 @@ defineExpose({
             <div class="flex items-center gap-2 cursor-pointer text-white">
               <Icon name="footstepsSolid" width="24" height="24" stroke="none" class="text-white" />
             </div>
-            <div @click="isMobileMenuOpen = false" class="cursor-pointer text-white">
+            <div class="cursor-pointer text-white" @click="isMobileMenuOpen = false">
               <Icon name="close" width="24" height="24" stroke-width="1.5" />
             </div>
           </div>

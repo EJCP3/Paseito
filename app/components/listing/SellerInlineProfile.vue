@@ -18,15 +18,15 @@ const showModal = ref(false)
 
 const initials = computed(() => {
   const parts = props.owner.name.trim().split(/\s+/)
-  return parts.length > 1 ? (parts[0][0] + parts[1][0]).toUpperCase() : props.owner.name.slice(0, 2).toUpperCase()
+  return parts.length > 1 ? (parts[0]![0]! + parts[1]![0]!).toUpperCase() : props.owner.name.slice(0, 2).toUpperCase()
 })
 </script>
 
 <template>
   <button
+    id="seller-inline-profile"
     type="button"
     class="flex items-center gap-2.5 text-left cursor-pointer hover:opacity-80 transition-opacity"
-    id="seller-inline-profile"
     @click="showModal = true"
   >
     <img
@@ -35,7 +35,7 @@ const initials = computed(() => {
       :alt="owner.name"
       referrerpolicy="no-referrer"
       class="w-8 h-8 rounded-full object-cover flex-shrink-0"
-    />
+    >
     <div
       v-else
       class="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold flex-shrink-0"

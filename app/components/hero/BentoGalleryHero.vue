@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 
-const { $gsap: gsap, $ScrollTrigger: ScrollTrigger, $Flip: Flip } = useNuxtApp()
+const { $gsap: gsap, $Flip: Flip } = useNuxtApp()
 
-const emit = defineEmits(['selectImage'])
+defineEmits(['selectImage'])
 
 const galleryImages = [1, 2, 3, 4, 5, 1, 2, 3].map(n => `/images/portada${n}.webp`)
 
@@ -11,11 +11,11 @@ const galleryWrapRef = ref<HTMLElement>()
 let flipCtx: any
 
 const createTween = () => {
-  let galleryElement = document.querySelector("#gallery-8") as HTMLElement
+  const galleryElement = document.querySelector("#gallery-8") as HTMLElement
   if (!galleryElement) return
-  let galleryItems = galleryElement.querySelectorAll(".gallery__item")
+  const galleryItems = galleryElement.querySelectorAll(".gallery__item")
 
-  flipCtx && flipCtx.revert()
+  if (flipCtx) flipCtx.revert()
   galleryElement.classList.remove("gallery--final")
 
   flipCtx = gsap.context(() => {
@@ -58,10 +58,10 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="gallery-wrap" ref="galleryWrapRef">
-    <div class="gallery gallery--bento gallery--switch" id="gallery-8">
+  <div ref="galleryWrapRef" class="gallery-wrap">
+    <div id="gallery-8" class="gallery gallery--bento gallery--switch">
       <div v-for="(img, i) in galleryImages" :key="i" class="gallery__item cursor-pointer" @click="$emit('selectImage', img)">
-        <img :src="img" alt="" />
+        <img :src="img" alt="" >
       </div>
     </div>
   </div>
