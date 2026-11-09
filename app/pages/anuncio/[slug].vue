@@ -6,6 +6,7 @@
  */
 import type { ListingFull, SceneWithHotspots } from '~~/shared/types/listing'
 import { ListingTypeLabels } from '~~/shared/types/enums'
+import { listingJsonLd, serializeJsonLd } from '~~/shared/utils/jsonLd'
 
 const route = useRoute()
 const router = useRouter()
@@ -17,11 +18,25 @@ if (error.value || !listing.value) {
   throw createError({ statusCode: 404, statusMessage: 'Anuncio no encontrado' })
 }
 
+const appUrl = String(useRuntimeConfig().public.appUrl).replace(/\/+$/, '')
+const canonical = `${appUrl}/anuncio/${listing.value.slug}`
+const seoDesc = listing.value.description.replace(/\s+/g, ' ').trim().slice(0, 155)
+const seoImage = cld(listing.value.photos?.[0]?.url || listing.value.scenes?.[0]?.previewUrl, 'w_1200,h_630,c_fill,f_jpg,q_auto')
+const seoTitle = `${listing.value.title} — Paseito`
+
+useSeoMeta({
+  title: seoTitle,
+  description: seoDesc,
+  ogTitle: seoTitle,
+  ogDescription: seoDesc,
+  ogImage: seoImage || undefined,
+  ogType: 'website',
+  ogUrl: canonical,
+  twitterCard: 'summary_large_image',
+})
 useHead({
-  title: `${listing.value.title} — Paseito`,
-  meta: [
-    { name: 'description', content: listing.value.description.slice(0, 160) },
-  ],
+  link: [{ rel: 'canonical', href: canonical }],
+  script: [{ type: 'application/ld+json', innerHTML: serializeJsonLd(listingJsonLd(listing.value, appUrl)) }],
 })
 
 const scenes = computed<SceneWithHotspots[]>(() => listing.value?.scenes || [])
@@ -121,6 +136,7 @@ function selectScene(sceneId: string) {
 }
 
 const { sweep } = useGlimmSweep()
+onMounted(prefetchGlimm)
 
 function backToHome() {
   sweep(async () => {
@@ -237,7 +253,7 @@ function backToHome() {
           <div v-show="!showDetails" class="w-full">
             <!-- Condiciones independientes (no v-else-if): un v-else sobre el
                  componente .client rompe su montaje en hidratación. -->
-            <TourViewer
+            <LazyTourViewer
               v-if="scenes.length && !viewingPhoto"
               ref="tourViewerRef"
               :scenes="scenes"
@@ -247,8 +263,13 @@ function backToHome() {
             <!-- Galería de fotos normales (independiente del tour: puede coexistir) -->
             <div v-if="(viewingPhoto || !scenes.length) && photos.length" class="w-full max-w-[768px] mx-auto">
               <img
-                :src="activePhoto?.url"
+                :src="cld(activePhoto?.url, 'f_auto,q_auto,c_limit,w_1600')"
+                :srcset="[800, 1200, 1600].map(w => `${cld(activePhoto?.url, `f_auto,q_auto,c_limit,w_${w}`)} ${w}w`).join(', ')"
+                sizes="(min-width: 1024px) 768px, 100vw"
                 :alt="listing.title"
+                width="1600"
+                height="1000"
+                fetchpriority="high"
                 class="w-full aspect-[16/10] object-cover rounded-2xl"
                 :style="{ borderRadius: 'var(--radius-viewer)' }"
               >
@@ -277,7 +298,7 @@ function backToHome() {
               :class="activeSceneId === scene.id && !viewingPhoto && !showDetails ? 'bg-white shadow-md scale-105' : 'bg-[var(--color-surface-elevated)] hover:bg-white/60'"
               @click="selectScene(scene.id)"
             >
-              <img :src="scene.previewUrl" :alt="scene.name" class="w-[50px] h-[50px] lg:w-[60px] lg:h-[60px] object-cover rounded-xl lg:rounded-[14px] block" >
+              <img :src="cld(scene.previewUrl, 'f_auto,q_auto,c_limit,w_160')" :alt="scene.name" width="60" height="60" loading="lazy" class="w-[50px] h-[50px] lg:w-[60px] lg:h-[60px] object-cover rounded-xl lg:rounded-[14px] block" >
               <span class="text-[10px] lg:text-[11px] font-bold text-center leading-tight mt-1 truncate w-full" :class="activeSceneId === scene.id && !viewingPhoto && !showDetails ? 'text-black' : 'text-gray-600'">{{ scene.name }}</span>
             </div>
 
@@ -289,7 +310,7 @@ function backToHome() {
                 :class="activePhotoId === photo.id && viewingPhoto && !showDetails ? 'bg-white shadow-md scale-105' : 'bg-[var(--color-surface-elevated)] hover:bg-white/60'"
                 @click="selectPhoto(photo.id)"
               >
-                <img :src="photo.thumbUrl || photo.url" :alt="`Foto ${i + 1}`" class="w-[50px] h-[50px] lg:w-[60px] lg:h-[60px] object-cover rounded-xl lg:rounded-[14px] block" >
+                <img :src="cld(photo.thumbUrl || photo.url, 'f_auto,q_auto,c_limit,w_160')" :alt="`Foto ${i + 1}`" width="60" height="60" loading="lazy" class="w-[50px] h-[50px] lg:w-[60px] lg:h-[60px] object-cover rounded-xl lg:rounded-[14px] block" >
                 <span class="text-[10px] lg:text-[11px] font-bold text-center leading-tight mt-1 truncate w-full" :class="activePhotoId === photo.id && viewingPhoto && !showDetails ? 'text-black' : 'text-gray-600'">{{ photo.name || `Foto ${i + 1}` }}</span>
               </div>
             </template>
@@ -340,18 +361,13 @@ function backToHome() {
             </button>
           </div>
 
-          <!-- Otros anuncios (móvil: carrusel horizontal al final) -->
-          <ClientOnly>
-            <RelatedListingsRail :exclude-id="listing.id" class="lg:hidden w-full mb-6 px-2" />
-          </ClientOnly>
-
-        </div>
-
-        <!-- Otros anuncios (desktop: dock vertical flotante a la derecha, ocupa todo el alto) -->
-        <div class="hidden lg:block lg:absolute lg:right-4 lg:top-0 lg:h-full  w-40 overflow-y-auto no-scrollbar z-10">
-          <ClientOnly>
-            <RelatedListingsRail :exclude-id="listing.id" class="h-full" />
-          </ClientOnly>
+          <!-- Otros anuncios, montado una sola vez: móvil = carrusel al final;
+               desktop = dock vertical flotante a la derecha (ancla: contenedor relative padre). -->
+          <div class="w-full mb-6 px-2 lg:mb-0 lg:px-0 lg:absolute lg:right-4 lg:top-0 lg:h-full lg:w-40 lg:overflow-y-auto no-scrollbar z-10">
+            <ClientOnly>
+              <RelatedListingsRail :exclude-id="listing.id" class="h-full" />
+            </ClientOnly>
+          </div>
         </div>
       </div>
     </div>

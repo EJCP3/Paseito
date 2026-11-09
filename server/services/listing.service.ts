@@ -1,7 +1,7 @@
 // Service — Listings CRUD
 // Toda la lógica de negocio de listados vive aquí
 import type { ListingFiltersInput, CreateListingInput, UpdateListingInput } from '~~/shared/schemas/listing.schema'
-import { buildListingWhere } from '~~/server/lib/listingWhere'
+import { buildListingWhere, buildListingOrderBy } from '~~/server/lib/listingWhere'
 import { publicCoords } from '~~/server/lib/coords'
 import { canPublish, nextOwnerStatus } from '~~/server/lib/listingRules'
 
@@ -36,12 +36,14 @@ export async function getListings(filters: ListingFiltersInput) {
     const [data, total] = await Promise.all([
       prisma.listing.findMany({
         where,
-        include: {
-          photos: { orderBy: { order: 'asc' }, take: 1 },
+        select: {
+          id: true, slug: true, type: true, mode: true, title: true, price: true, currency: true,
+          city: true, sector: true, bedrooms: true, bathrooms: true, areaM2: true,
+          latitude: true, longitude: true, ownerId: true, createdAt: true,
+          photos: { orderBy: { order: 'asc' }, take: 1, select: { thumbUrl: true, url: true } },
           scenes: { orderBy: { order: 'asc' }, take: 1, select: { previewUrl: true } },
-          owner: { select: { name: true } },
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy: buildListingOrderBy(filters.sort),
         skip: (page - 1) * limit,
         take: limit,
       }),

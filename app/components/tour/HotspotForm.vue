@@ -75,7 +75,7 @@ watch(() => props.show, (val) => {
       leave-from-class="opacity-100"
       leave-to-class="opacity-0"
     >
-      <div v-if="show" class="fixed inset-0 z-[100] flex items-center justify-center p-4" id="hotspot-form-modal">
+      <div v-if="show" id="hotspot-form-modal" data-theme="light" class="fixed inset-0 z-[100] flex items-center justify-center p-4">
         <!-- Backdrop -->
         <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="emit('close')" />
 
@@ -158,7 +158,7 @@ watch(() => props.show, (val) => {
 
           <!-- Actions -->
           <div class="flex gap-3 mt-6">
-            <button class="btn btn-ghost rounded-full flex-1" @click="emit('close')">
+            <button class="btn btn-ghost rounded-full flex-1 !text-neutral-800 underline" @click="emit('close')">
               Cancelar
             </button>
             <button

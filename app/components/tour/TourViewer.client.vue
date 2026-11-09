@@ -86,6 +86,7 @@ onMounted(async () => {
         {
           nodes: props.scenes.map((s) => ({
             id: s.id,
+            // Sin transformar: con panorámicas 8K el límite de megapíxeles del plan gratuito de Cloudinary dejaría el visor en blanco.
             panorama: s.panoramaUrl,
             name: escapeHtml(s.name),
             links: s.hotspots

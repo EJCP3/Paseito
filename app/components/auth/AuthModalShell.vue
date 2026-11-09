@@ -30,6 +30,7 @@ async function continueWithGoogle() {
 <template>
   <Teleport to="body">
     <Transition
+      appear
       enter-active-class="transition duration-200 ease-out"
       enter-from-class="opacity-0"
       enter-to-class="opacity-100"

@@ -5,6 +5,7 @@
  * Renderiza solo en cliente (Leaflet necesita `window`/DOM real).
  */
 import L from 'leaflet'
+import 'leaflet/dist/leaflet.css'
 
 const props = defineProps<{
   modelValue: { lat: number; lng: number } | null

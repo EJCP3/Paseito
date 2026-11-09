@@ -12,8 +12,13 @@ const props = defineProps<{
 
 const activeAccordion = ref<string>('descripcion')
 
+// Mapa y calendario (Leaflet / v-calendar) se montan la primera vez que se abre
+// su acordeón y se quedan montados (no se descargan sus chunks hasta entonces).
+const opened = reactive<Record<string, boolean>>({})
+
 function toggleAccordion(id: string) {
   activeAccordion.value = activeAccordion.value === id ? '' : id
+  if (activeAccordion.value) opened[activeAccordion.value] = true
 }
 
 // Specs para la grid de características
@@ -145,7 +150,7 @@ async function copyListingLink() {
       <div class="grid transition-[grid-template-rows,opacity] duration-300 ease-in-out" :class="activeAccordion === 'disponibilidad' ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'">
         <div class="overflow-hidden">
           <div class="px-6 pb-6">
-            <AvailabilityCalendar :ranges="availability" />
+            <LazyAvailabilityCalendar v-if="opened.disponibilidad" :ranges="availability" />
           </div>
         </div>
       </div>
@@ -159,7 +164,7 @@ async function copyListingLink() {
       <div class="grid transition-[grid-template-rows,opacity] duration-300 ease-in-out" :class="activeAccordion === 'mapa' ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'">
         <div class="overflow-hidden">
           <div class="px-6 pb-6">
-            <ListingMap :lat="mapCenter.lat" :lng="mapCenter.lng" :active="activeAccordion === 'mapa'" />
+            <LazyListingMap v-if="opened.mapa" :lat="mapCenter.lat" :lng="mapCenter.lng" :active="activeAccordion === 'mapa'" />
           </div>
         </div>
       </div>

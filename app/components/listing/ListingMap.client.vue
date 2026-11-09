@@ -5,6 +5,7 @@
  * ubicación ya confirmada por el dueño al publicar.
  */
 import L from 'leaflet'
+import 'leaflet/dist/leaflet.css'
 
 const props = defineProps<{
   lat: number
@@ -52,15 +53,24 @@ onMounted(async () => {
     fillColor: '#C1FF00',
     fillOpacity: 0.3,
   }).addTo(map)
+
+  // Montado ya con el acordeón abierto (montaje diferido en la primera apertura):
+  // el watch de `active` no se dispara, así que se recalcula aquí tras la transición.
+  if (props.active) await refreshSize()
 })
+
+async function refreshSize() {
+  await new Promise((resolve) => setTimeout(resolve, 320))
+  if (!map) return
+  map.invalidateSize()
+  map.setView([props.lat, props.lng], 15)
+}
 
 // Al abrir el acordeón: esperamos a que termine la transición CSS (300ms)
 // antes de recalcular, si no Leaflet mide el contenedor todavía colapsado.
 watch(() => props.active, async (isActive) => {
   if (!isActive || !map) return
-  await new Promise((resolve) => setTimeout(resolve, 320))
-  map.invalidateSize()
-  map.setView([props.lat, props.lng], 15)
+  await refreshSize()
 })
 
 onBeforeUnmount(() => {

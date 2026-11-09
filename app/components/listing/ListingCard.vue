@@ -23,6 +23,7 @@ const coverImage = computed(() => {
   if (props.listing.scenes?.length) return props.listing.scenes[0]!.previewUrl
   return '/images/hero/hero-1.webp' // Fallback
 })
+const coverSrc = computed(() => cld(coverImage.value, 'f_auto,q_auto,c_limit,w_600'))
 
 const has360 = computed(() => (props.listing.scenes?.length ?? 0) > 0)
 
@@ -57,10 +58,13 @@ const publishedDate = computed(() =>
     <!-- Imagen -->
     <div class="relative aspect-[4/3] overflow-hidden">
       <img
-        :src="coverImage"
+        :src="coverSrc"
         :alt="listing.title"
         class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+        width="600"
+        height="450"
         loading="lazy"
+        decoding="async"
       >
 
       <!-- Badge tipo -->

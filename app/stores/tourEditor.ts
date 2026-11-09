@@ -27,6 +27,10 @@ export const useTourEditorStore = defineStore('tourEditor', () => {
 
   function addScene(scene: SceneWithHotspots) {
     scenes.value.push(scene)
+    // La primera escena de un anuncio nuevo pasa a ser la activa (si no, no se pueden añadir hotspots)
+    if (!activeSceneId.value || !scenes.value.some((s) => s.id === activeSceneId.value)) {
+      activeSceneId.value = scene.id
+    }
   }
 
   function renameScene(id: string, name: string) {

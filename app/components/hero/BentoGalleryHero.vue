@@ -43,16 +43,23 @@ const createTween = () => {
   }, galleryWrapRef.value)
 }
 
+let resizeTimer: ReturnType<typeof setTimeout> | undefined
+const onResize = () => {
+  clearTimeout(resizeTimer)
+  resizeTimer = setTimeout(createTween, 150)
+}
+
 onMounted(() => {
   // Add small delay to ensure DOM is ready and fonts loaded
   setTimeout(() => {
     createTween()
-    window.addEventListener("resize", createTween)
+    window.addEventListener("resize", onResize)
   }, 100)
 })
 
 onBeforeUnmount(() => {
-  window.removeEventListener("resize", createTween)
+  window.removeEventListener("resize", onResize)
+  clearTimeout(resizeTimer)
   if (flipCtx) flipCtx.revert()
 })
 </script>
@@ -61,7 +68,7 @@ onBeforeUnmount(() => {
   <div ref="galleryWrapRef" class="gallery-wrap">
     <div id="gallery-8" class="gallery gallery--bento gallery--switch">
       <div v-for="(img, i) in galleryImages" :key="i" class="gallery__item cursor-pointer" @click="$emit('selectImage', img)">
-        <img :src="img" alt="" >
+        <img :src="img" alt="" width="400" height="300" :fetchpriority="i === 0 ? 'high' : undefined" :loading="i === 0 ? 'eager' : 'lazy'" decoding="async">
       </div>
     </div>
   </div>

@@ -18,7 +18,16 @@ export default defineNuxtConfig({
     '@pinia/nuxt',
     '@nuxt/image',
     '@nuxt/eslint',
+    '@nuxt/fonts',
   ],
+
+  // Solo los pesos usados (font-weight/font-* en app); sin itálicas. 800/900 se sintetizan desde 700.
+  fonts: {
+    families: [
+      { name: 'IBM Plex Sans', provider: 'google', weights: [400, 500, 600, 700], styles: ['normal'] },
+      { name: 'IBM Plex Mono', provider: 'google', weights: [600, 700], styles: ['normal'] },
+    ],
+  },
 
   // Component Scanning Configuration
   components: [
@@ -29,7 +38,7 @@ export default defineNuxtConfig({
   ],
 
   // Global CSS
-  css: ['~/assets/css/main.css', 'leaflet/dist/leaflet.css'],
+  css: ['~/assets/css/main.css'],
 
   // PostCSS — Tailwind CSS 4
   postcss: {

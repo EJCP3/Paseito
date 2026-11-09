@@ -426,17 +426,14 @@ async function handleSubmit() {
     const listing = await $fetch('/api/listings', { method: 'POST', body })
     const listingId = (listing as any).id
 
-    // Detección de POIs cercanos: se dispara una sola vez, justo al publicar.
-    // Si Overpass falla no debe bloquear el flujo — el listado ya se creó.
+    // Detección de POIs cercanos: se dispara una sola vez, en segundo plano. Overpass
+    // puede tardar más de un minuto; el vendedor sigue a Fotos sin esperarla y, si
+    // falla, el anuncio queda igual pero sin puntos de interés.
     if (isRealEstate.value && form.latitude !== null && form.longitude !== null) {
-      try {
-        await $fetch(`/api/listings/${listingId}/nearby-places`, {
-          method: 'POST',
-          body: { lat: form.latitude, lng: form.longitude, excludeNames: discardedPoiNames.value },
-        })
-      } catch {
-        // Se ignora: el anuncio queda publicado igual, sin puntos de interés.
-      }
+      $fetch(`/api/listings/${listingId}/nearby-places`, {
+        method: 'POST',
+        body: { lat: form.latitude, lng: form.longitude, excludeNames: discardedPoiNames.value },
+      }).catch(() => {})
     }
 
     // Redirigir al paso de fotos
