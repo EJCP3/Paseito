@@ -23,5 +23,8 @@ export default defineEventHandler(async (event) => {
   }
 
   const out = publicCoords(listing, viewerId)
-  return listing.ownerId === viewerId ? out : { ...out, nearbyPlaces: publicNearby(out.nearbyPlaces) }
+  if (listing.ownerId === viewerId) return out
+  // El motivo de moderación solo lo ve el dueño
+  const { adminPausedAt: _a, adminPausedReason: _r, ...pub } = out
+  return { ...pub, nearbyPlaces: publicNearby(out.nearbyPlaces) }
 })

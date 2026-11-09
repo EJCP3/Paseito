@@ -37,14 +37,21 @@ onMounted(async () => {
   const container = await waitForContainer()
   if (!container) return
 
-  map = L.map(container, { scrollWheelZoom: false }).setView([props.lat, props.lng], 16)
+  map = L.map(container, { scrollWheelZoom: false }).setView([props.lat, props.lng], 15)
 
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>',
     maxZoom: 19,
   }).addTo(map)
 
-  L.marker([props.lat, props.lng]).addTo(map)
+  // Ubicación aproximada (RQ-LEGAL-03): círculo de ~300 m, sin pin
+  L.circle([props.lat, props.lng], {
+    radius: 300,
+    color: '#A5D800',
+    weight: 2,
+    fillColor: '#C1FF00',
+    fillOpacity: 0.3,
+  }).addTo(map)
 })
 
 // Al abrir el acordeón: esperamos a que termine la transición CSS (300ms)
@@ -53,7 +60,7 @@ watch(() => props.active, async (isActive) => {
   if (!isActive || !map) return
   await new Promise((resolve) => setTimeout(resolve, 320))
   map.invalidateSize()
-  map.setView([props.lat, props.lng], 16)
+  map.setView([props.lat, props.lng], 15)
 })
 
 onBeforeUnmount(() => {
@@ -66,7 +73,7 @@ onBeforeUnmount(() => {
   <div>
     <div ref="containerRef" class="w-full h-64 rounded-2xl overflow-hidden" style="border: 1px solid var(--color-border);" />
     <p class="text-xs text-gray-400 mt-1.5 px-1">
-      Mapa &copy; colaboradores de OpenStreetMap.
+      Ubicación aproximada. Mapa &copy; colaboradores de OpenStreetMap.
     </p>
   </div>
 </template>

@@ -5,9 +5,11 @@
  */
 import { authClient } from '~/utils/auth-client'
 
-defineProps<{
+const props = defineProps<{
   show: boolean
   title: string
+  googleDisabled?: boolean
+  signUp?: boolean
 }>()
 
 const emit = defineEmits<{ (e: 'close'): void }>()
@@ -19,6 +21,7 @@ async function continueWithGoogle() {
   googleLoading.value = true
   await authClient.signIn.social({
     provider: 'google',
+    requestSignUp: props.signUp || undefined,
     callbackURL: redirectAfterAuth.value || '/',
   })
 }
@@ -66,7 +69,7 @@ async function continueWithGoogle() {
               type="button"
               class="btn w-full h-14 rounded-2xl font-semibold gap-2 border mt-3"
               style="background: var(--color-surface-elevated-dark); border-color: var(--color-border-dark); color: #e5e5e5;"
-              :disabled="googleLoading"
+              :disabled="googleLoading || googleDisabled"
               @click="continueWithGoogle"
             >
               <Icon name="googleLogo" width="18" height="18" stroke="none" />

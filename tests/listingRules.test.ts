@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { canPublish, nextOwnerStatus, anonymizedUserData } from '../server/lib/listingRules'
 
-const base = { status: 'DRAFT', photosCount: 1, scenesCount: 0, contactConsentAt: new Date('2026-01-01') }
+const base = { status: 'DRAFT', photosCount: 1, scenesCount: 0, contactConsentAt: new Date('2026-01-01'), adminPausedAt: null as Date | null }
 
 function expectFail(r: { ok: boolean; reason?: string }) {
   expect(r.ok).toBe(false)
@@ -32,6 +32,12 @@ describe('canPublish', () => {
 
   it('rechaza sin consentimiento de contacto', () => {
     expectFail(canPublish({ ...base, contactConsentAt: null }))
+  })
+
+  it.each(['DRAFT', 'PAUSED'])('rechaza desde %s si está pausado por moderación', (status) => {
+    const r = canPublish({ ...base, status, adminPausedAt: new Date() })
+    expectFail(r)
+    expect((r as any).reason).toMatch(/moderaci[oó]n/i)
   })
 
   it.each(['ACTIVE', 'PENDING_REVIEW', 'SOLD'])('rechaza desde el estado %s', (status) => {

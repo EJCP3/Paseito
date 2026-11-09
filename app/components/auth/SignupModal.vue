@@ -13,12 +13,14 @@ const confirmPassword = ref('')
 const fieldErrors = ref<Record<string, string>>({})
 const formError = ref('')
 const loading = ref(false)
+const accepted = ref(false)
 
 watch(showSignup, (open) => {
   if (open) {
     email.value = ''
     password.value = ''
     confirmPassword.value = ''
+    accepted.value = false
     fieldErrors.value = {}
     formError.value = ''
   }
@@ -27,6 +29,10 @@ watch(showSignup, (open) => {
 async function handleSubmit() {
   fieldErrors.value = {}
   formError.value = ''
+  if (!accepted.value) {
+    formError.value = 'Debes aceptar los Términos y la Política de privacidad'
+    return
+  }
 
   const result = SignupSchema.safeParse({
     email: email.value,
@@ -45,7 +51,8 @@ async function handleSubmit() {
     email: result.data.email,
     password: result.data.password,
     name: result.data.email.split('@')[0] ?? result.data.email,
-  }, {
+    acceptTerms: true,
+  } as Parameters<typeof authClient.signUp.email>[0], {
     onSuccess: () => afterAuthSuccess(),
     onError: (ctx) => {
       formError.value = ctx.error.message === 'User already exists'
@@ -62,7 +69,7 @@ function switchToLogin() {
 </script>
 
 <template>
-  <AuthModalShell :show="showSignup" title="Crear cuenta" @close="closeModals">
+  <AuthModalShell :show="showSignup" title="Crear cuenta" sign-up :google-disabled="!accepted" @close="closeModals">
     <form class="flex flex-col gap-4" @submit.prevent="handleSubmit">
       <div>
         <input
@@ -94,9 +101,19 @@ function switchToLogin() {
         <p v-if="fieldErrors.confirmPassword" class="text-xs text-red-600 mt-1">{{ fieldErrors.confirmPassword }}</p>
       </div>
 
+      <label class="flex items-start gap-2 text-sm cursor-pointer" style="color: #d4d4d4;">
+        <input v-model="accepted" type="checkbox" class="mt-1 h-4 w-4 shrink-0" style="accent-color: var(--color-neon);">
+        <span>
+          Acepto los
+          <NuxtLink to="/terminos" target="_blank" class="underline" style="color: var(--color-neon);">Términos</NuxtLink>
+          y la
+          <NuxtLink to="/privacidad" target="_blank" class="underline" style="color: var(--color-neon);">Política de privacidad</NuxtLink>
+        </span>
+      </label>
+
       <p v-if="formError" class="text-xs text-red-600 text-center">{{ formError }}</p>
 
-      <button type="submit" class="btn btn-neon w-full h-14 text-base mt-1 !rounded-2xl" :disabled="loading">
+      <button type="submit" class="btn btn-neon w-full h-14 text-base mt-1 !rounded-2xl" :disabled="loading || !accepted">
         {{ loading ? 'Creando cuenta…' : 'Crear cuenta' }}
       </button>
     </form>

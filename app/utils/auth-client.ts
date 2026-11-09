@@ -20,6 +20,8 @@ export const authClient = createAuthClient({
         facebookUrl: { type: 'string', required: false },
         tiktokUrl: { type: 'string', required: false },
         websiteUrl: { type: 'string', required: false },
+        // Solo lectura (input:false en el servidor): lo usa el middleware de /admin
+        role: { type: 'string', required: false, input: false },
       },
     }),
   ],
