@@ -12,6 +12,34 @@ export enum ListingStatus {
   ACTIVE = 'ACTIVE',
   SOLD = 'SOLD',
   PAUSED = 'PAUSED',
+  PENDING_REVIEW = 'PENDING_REVIEW',
+}
+
+export enum Role {
+  USER = 'USER',
+  ADMIN = 'ADMIN',
+}
+
+export enum ReportReason {
+  SPAM = 'SPAM',
+  FRAUD = 'FRAUD',
+  INAPPROPRIATE = 'INAPPROPRIATE',
+  MISLEADING_PRICE = 'MISLEADING_PRICE',
+  OTHER = 'OTHER',
+}
+
+export enum ListingEventType {
+  VIEW = 'VIEW',
+  CONTACT_CLICK = 'CONTACT_CLICK',
+  SCHEDULE_CLICK = 'SCHEDULE_CLICK',
+  TOUR_OPEN = 'TOUR_OPEN',
+  TOUR_TIME = 'TOUR_TIME',
+}
+
+export enum FeaturePlacement {
+  HERO = 'HERO',
+  SIDEBAR = 'SIDEBAR',
+  BADGE = 'BADGE',
 }
 
 export enum HotspotType {
@@ -56,6 +84,34 @@ export const ListingStatusLabels: Record<ListingStatus, string> = {
   [ListingStatus.ACTIVE]: 'Activo',
   [ListingStatus.SOLD]: 'Vendido',
   [ListingStatus.PAUSED]: 'Pausado',
+  [ListingStatus.PENDING_REVIEW]: 'En revisión',
+}
+
+export const RoleLabels: Record<Role, string> = {
+  [Role.USER]: 'Usuario',
+  [Role.ADMIN]: 'Administrador',
+}
+
+export const ReportReasonLabels: Record<ReportReason, string> = {
+  [ReportReason.SPAM]: 'Spam',
+  [ReportReason.FRAUD]: 'Posible fraude',
+  [ReportReason.INAPPROPRIATE]: 'Contenido inapropiado',
+  [ReportReason.MISLEADING_PRICE]: 'Precio engañoso',
+  [ReportReason.OTHER]: 'Otro',
+}
+
+export const ListingEventTypeLabels: Record<ListingEventType, string> = {
+  [ListingEventType.VIEW]: 'Vista',
+  [ListingEventType.CONTACT_CLICK]: 'Clic en contacto',
+  [ListingEventType.SCHEDULE_CLICK]: 'Clic en agendar visita',
+  [ListingEventType.TOUR_OPEN]: 'Tour abierto',
+  [ListingEventType.TOUR_TIME]: 'Tiempo en el tour',
+}
+
+export const FeaturePlacementLabels: Record<FeaturePlacement, string> = {
+  [FeaturePlacement.HERO]: 'Portada',
+  [FeaturePlacement.SIDEBAR]: 'Barra lateral',
+  [FeaturePlacement.BADGE]: 'Insignia',
 }
 
 export const HotspotTypeLabels: Record<HotspotType, string> = {

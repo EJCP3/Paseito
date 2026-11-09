@@ -9,7 +9,7 @@ import { BUILDING_AMENITIES, VILLA_SERVICES } from '../types/enums'
 
 // Enums como Zod
 export const ListingTypeSchema = z.enum(['APARTMENT', 'HOUSE', 'VILLA'])
-export const ListingStatusSchema = z.enum(['DRAFT', 'ACTIVE', 'SOLD', 'PAUSED'])
+export const ListingStatusSchema = z.enum(['DRAFT', 'ACTIVE', 'SOLD', 'PAUSED', 'PENDING_REVIEW'])
 export const ListingModeSchema = z.enum(['SALE', 'RENT_LONG_TERM', 'RENT_DAILY'])
 export const FurnishedStatusSchema = z.enum(['NONE', 'PARTIAL', 'FULL'])
 export const PropertyConditionSchema = z.enum(['NEW', 'RENOVATED', 'USED', 'UNDER_CONSTRUCTION'])
