@@ -9,11 +9,24 @@ const route = useRoute()
 const HIDDEN_TICKER_PREFIXES = ['/anuncio/', '/cuenta', '/publicar']
 // Modales de auth: se montan (y descargan su chunk) la primera vez que se abren
 // y siguen montados para no cortar su transición de salida.
-const { showLogin, showSignup } = useAuth()
+const { showLogin, showSignup, openLogin } = useAuth()
 const loginLoaded = ref(showLogin.value)
 const signupLoaded = ref(showSignup.value)
 watch(showLogin, (v) => { if (v) loginLoaded.value = true }, { immediate: true })
 watch(showSignup, (v) => { if (v) signupLoaded.value = true }, { immediate: true })
+
+// El middleware `auth` redirige a /?login=<ruta> en la primera carga sin sesión.
+// Se abre el login DESPUÉS de hidratar (si no, SSR y cliente difieren y Vue recrea
+// el modal, borrando lo escrito) y se limpia el parámetro de la URL.
+const router = useRouter()
+onMounted(() => {
+  const target = route.query.login
+  if (typeof target !== 'string') return
+  // Solo rutas internas como destino tras el login
+  openLogin(/^\/(?![/\\])/.test(target) ? target : undefined)
+  const { login: _login, ...rest } = route.query
+  router.replace({ query: rest })
+})
 const showTicker = computed(() => !HIDDEN_TICKER_PREFIXES.some((prefix) => route.path.startsWith(prefix)))
 </script>
 

@@ -16,6 +16,7 @@ export const authClient = createAuthClient({
     // Debe reflejar user.additionalFields de server/utils/auth.ts
     inferAdditionalFields({
       user: {
+        phone: { type: 'string', required: false },
         instagramUrl: { type: 'string', required: false },
         facebookUrl: { type: 'string', required: false },
         tiktokUrl: { type: 'string', required: false },

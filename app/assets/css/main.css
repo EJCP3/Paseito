@@ -94,6 +94,17 @@ h1, h2, h3, h4, h5, h6 {
   transform: translateY(0);
 }
 
+/* Deshabilitado: que se note (antes se veía igual que activo) */
+.btn-neon:disabled,
+.btn-neon[disabled] {
+  background-color: var(--color-neon);
+  color: #0D0D0D;
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
 /* Cards */
 .card-paseito {
   background: var(--color-surface-elevated);

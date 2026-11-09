@@ -8,15 +8,16 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
   if (import.meta.server) {
     session = await useRequestFetch()('/api/auth/get-session').catch(() => null)
   } else {
-    // Sesión reactiva si ya cargó; si no, se consulta
+    // Atajo: la sesión reactiva solo si ya tiene usuario. Si no, se consulta al servidor:
+    // justo después del login la reactiva aún no se ha refrescado y bloquearía la redirección.
     const reactive = useAuth().session.value
-    session = reactive.isPending ? (await authClient.getSession()).data : reactive.data
+    session = reactive.data?.user ? reactive.data : (await authClient.getSession()).data
   }
 
   if ((session as { user?: unknown } | null)?.user) return
 
   // Navegación interna → se queda donde está y abre el modal.
-  // Primera carga (SSR/recarga) → inicio con ?login=<ruta>; el plugin login-query abre el modal
+  // Primera carga (SSR/recarga) → inicio con ?login=<ruta>; app.vue abre el modal al montar
   // (el estado de useState no sobrevive a la redirección del servidor).
   if (import.meta.client && from.matched.length) {
     useAuth().openLogin(to.fullPath)

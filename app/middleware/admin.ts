@@ -7,8 +7,9 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
   if (import.meta.server) {
     session = await useRequestFetch()('/api/auth/get-session').catch(() => null)
   } else {
+    // Atajo solo si la reactiva ya tiene usuario (tras el login aún no se ha refrescado)
     const reactive = useAuth().session.value
-    session = reactive.isPending ? (await authClient.getSession()).data : reactive.data
+    session = reactive.data?.user ? reactive.data : (await authClient.getSession()).data
   }
 
   const user = (session as { user?: { role?: string | null } } | null)?.user
