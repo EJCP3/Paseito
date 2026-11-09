@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { PLACEMENT_LABELS, formatUsd, type FeaturePlacementKey } from '~~/shared/config/featurePricing'
 definePageMeta({ middleware: 'admin' })
 useHead({ title: 'Administración — Paseito', meta: [{ name: 'robots', content: 'noindex' }] })
 
@@ -6,10 +7,11 @@ useHead({ title: 'Administración — Paseito', meta: [{ name: 'robots', content
  * Panel de admin (RQ-ADMIN-01/02/03): anuncios, reportes, usuarios y auditoría.
  * Tarjetas en vez de tablas para que funcione a 375px. El servidor protege con requireAdmin.
  */
-type Tab = 'listings' | 'reports' | 'users' | 'audit'
+type Tab = 'listings' | 'reports' | 'features' | 'users' | 'audit'
 const TABS: { id: Tab; label: string }[] = [
   { id: 'listings', label: 'Anuncios' },
   { id: 'reports', label: 'Reportes' },
+  { id: 'features', label: 'Destacados' },
   { id: 'users', label: 'Usuarios' },
   { id: 'audit', label: 'Auditoría' },
 ]
@@ -38,6 +40,16 @@ const { data: reports, refresh: refreshReports } = useFetch<any>('/api/admin/rep
   watch: [rStatus, rPage],
 })
 
+// --- Destacados (pago manual) ---
+const FEATURE_STATUS: Record<string, string> = { PENDING: 'Pendiente de pago', ACTIVE: 'Activo', CANCELLED: 'Cancelado' }
+const fStatus = ref('')
+const { data: features, refresh: refreshFeatures } = useFetch<any>('/api/admin/features', {
+  query: computed(() => ({ status: fStatus.value || undefined })),
+  watch: [fStatus],
+})
+const featureState = (f: any) => f.status === 'ACTIVE' && new Date(f.endsAt) <= new Date() ? 'Vencido' : FEATURE_STATUS[f.status]
+const monthLabel = (m: string) => new Intl.DateTimeFormat('es-DO', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${m}-01T00:00:00Z`))
+
 // --- Usuarios ---
 const uQ = ref('')
 const uPage = ref(1)
@@ -61,7 +73,7 @@ async function act(url: string, body: Record<string, unknown>) {
   busy.value = true
   try {
     await $fetch(url, { method: 'PATCH', body })
-    await Promise.all([refreshListings(), refreshReports(), refreshUsers(), refreshAudit()])
+    await Promise.all([refreshListings(), refreshReports(), refreshFeatures(), refreshUsers(), refreshAudit()])
   } catch (e: any) {
     error.value = e?.data?.statusMessage || 'No se pudo completar la acción.'
   } finally {
@@ -98,6 +110,24 @@ async function confirmPause() {
   const { id, action } = pauseTarget.value!
   pauseTarget.value = null
   await act(`/api/admin/listings/${id}`, { action, reason })
+}
+
+// --- Modal de confirmar (con referencia de pago) o cancelar (con motivo) un destacado ---
+const featTarget = ref<{ id: string; title: string; ref: string; priceCents: number; action: 'confirm' | 'cancel' } | null>(null)
+const featInput = ref('')
+function openFeature(f: any, action: 'confirm' | 'cancel') {
+  featTarget.value = { id: f.id, title: f.listing.title, ref: f.ref, priceCents: f.priceCents, action }
+  featInput.value = ''
+}
+async function submitFeature() {
+  const t = featTarget.value!
+  const v = featInput.value.trim()
+  if (v.length < 3 || v.length > (t.action === 'confirm' ? 100 : 300)) {
+    error.value = t.action === 'confirm' ? 'La referencia es obligatoria (mín. 3 caracteres)' : 'El motivo debe tener entre 3 y 300 caracteres'
+    return
+  }
+  featTarget.value = null
+  await act(`/api/admin/features/${t.id}`, t.action === 'confirm' ? { action: 'confirm', paymentRef: v } : { action: 'cancel', reason: v })
 }
 
 const btn = 'rounded-full border border-black px-3 py-2 text-sm font-semibold disabled:opacity-50'
@@ -187,6 +217,41 @@ const card = 'rounded-2xl bg-white p-4 flex flex-col gap-2 border border-gray-20
       </div>
     </section>
 
+    <!-- DESTACADOS -->
+    <section v-if="tab === 'features'" class="flex flex-col gap-3">
+      <div v-if="features?.revenue" :class="card" aria-label="Ingresos por destacados">
+        <p class="font-bold">Ingresos confirmados: {{ formatUsd(features.revenue.total) }}<span v-if="features.revenue.cancelledPaidCents" class="font-normal text-sm"> (de ellos, cancelados: {{ formatUsd(features.revenue.cancelledPaidCents) }})</span></p>
+        <p class="text-xs" style="color: var(--color-muted);">
+          <template v-for="(label, k) in PLACEMENT_LABELS" :key="k">{{ label }}: {{ formatUsd(features.revenue.byPlacement[k as FeaturePlacementKey]) }} · </template>
+        </p>
+        <ul v-if="features.revenue.byMonth.length" class="text-sm flex flex-wrap gap-x-4 gap-y-1">
+          <li v-for="m in features.revenue.byMonth" :key="m.month" class="capitalize">{{ monthLabel(m.month) }}: <strong>{{ formatUsd(m.total) }}</strong></li>
+        </ul>
+        <p v-else class="text-xs">Aún no hay pagos confirmados.</p>
+      </div>
+      <select v-model="fStatus" class="rounded-xl border border-gray-300 p-3 text-sm bg-white w-full sm:w-60">
+        <option value="">Todos</option>
+        <option v-for="(label, k) in FEATURE_STATUS" :key="k" :value="k">{{ label }}</option>
+      </select>
+      <div v-for="f in features?.data" :key="f.id" :class="card">
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="text-xs font-bold rounded-full px-2 py-0.5" :class="f.status === 'PENDING' ? 'bg-amber-200' : 'bg-gray-200'">{{ featureState(f) }}</span>
+          <span class="font-bold break-words">{{ f.listing.title }}</span>
+        </div>
+        <p class="text-xs break-all" style="color: var(--color-muted);">
+          {{ PLACEMENT_LABELS[f.placement as FeaturePlacementKey] }} · {{ Math.round((new Date(f.endsAt).getTime() - new Date(f.startsAt).getTime()) / 86400000) }} días · {{ formatUsd(f.priceCents) }} · ref. {{ f.ref }}<span v-if="f.refDuplicated" class="text-red-600 font-semibold"> (referencia repetida: usa el id completo)</span>
+          · {{ f.listing.owner.name }} ({{ f.listing.owner.email }}) · solicitado {{ fmt(f.createdAt) }}
+        </p>
+        <p v-if="f.status === 'ACTIVE'" class="text-xs">Pago: {{ f.paymentRef }} · vigente hasta {{ fmt(f.endsAt) }}</p>
+        <div v-if="f.status !== 'CANCELLED'" class="flex flex-wrap gap-2 mt-1">
+          <NuxtLink :to="`/anuncio/${f.listing.slug}`" target="_blank" :class="btn">Ver anuncio</NuxtLink>
+          <button v-if="f.status === 'PENDING'" :class="[btn, 'bg-black text-white']" :disabled="busy" @click="openFeature(f, 'confirm')">Confirmar pago</button>
+          <button :class="[btn, 'text-red-600 !border-red-600']" :disabled="busy" @click="openFeature(f, 'cancel')">Cancelar</button>
+        </div>
+      </div>
+      <p v-if="features && !features.data.length" class="text-sm">Sin destacados.</p>
+    </section>
+
     <!-- USUARIOS -->
     <section v-if="tab === 'users'" class="flex flex-col gap-3">
       <input v-model.lazy="uQ" type="search" placeholder="Buscar por correo o nombre" class="rounded-xl border border-gray-300 p-3 text-sm bg-white">
@@ -224,6 +289,20 @@ const card = 'rounded-2xl bg-white p-4 flex flex-col gap-2 border border-gray-20
       </div>
       <p v-if="audit && !audit.length" class="text-sm">Sin acciones registradas.</p>
     </section>
+
+    <!-- Modal de destacado: referencia de pago (confirmar) o motivo (cancelar) -->
+    <div v-if="featTarget" data-theme="light" class="fixed inset-0 z-[3000] flex items-center justify-center p-4 bg-black/50" @click.self="featTarget = null" @keydown.esc="featTarget = null">
+      <div role="dialog" aria-modal="true" class="w-full max-w-md rounded-3xl bg-white p-6">
+        <h2 class="text-lg font-bold mb-1">{{ featTarget.action === 'confirm' ? 'Confirmar pago' : 'Cancelar destacado' }}</h2>
+        <p class="text-sm mb-3 break-words" style="color: var(--color-muted);">{{ featTarget.title }} · {{ formatUsd(featTarget.priceCents) }} · ref. {{ featTarget.ref }}</p>
+        <input v-if="featTarget.action === 'confirm'" v-model="featInput" autofocus maxlength="100" class="w-full rounded-xl border border-gray-300 p-3 text-sm" placeholder="Referencia del pago (única)" @keydown.enter="submitFeature">
+        <textarea v-else v-model="featInput" autofocus rows="3" maxlength="300" class="w-full rounded-xl border border-gray-300 p-3 text-sm" placeholder="Motivo (3–300 caracteres)" />
+        <div class="flex justify-end gap-2 mt-3">
+          <button :class="btn" @click="featTarget = null">Volver</button>
+          <button :class="[btn, 'bg-black text-white']" @click="submitFeature">{{ featTarget.action === 'confirm' ? 'Confirmar' : 'Cancelar destacado' }}</button>
+        </div>
+      </div>
+    </div>
 
     <!-- Modal de motivo (pausar / eliminar) -->
     <div v-if="pauseTarget" data-theme="light" class="fixed inset-0 z-[3000] flex items-center justify-center p-4 bg-black/50" @click.self="pauseTarget = null">

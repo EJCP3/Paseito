@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { PLACEMENT_LABELS, formatRD, type FeaturePlacementKey } from '~~/shared/config/featurePricing'
 definePageMeta({ middleware: 'auth' })
 /**
  * Página de cuenta — Perfil del usuario y sus anuncios
@@ -32,6 +33,29 @@ onMounted(() => {
     .catch(() => {})
 })
 const statsFor = ref<{ id: string; title: string } | null>(null)
+
+// Destacados pendientes o vigentes de mis anuncios (pago manual)
+const { data: myFeatures, refresh: refreshFeatures } = useFetch<any[]>('/api/features/mine', { default: () => [] })
+const featuresFor = (listingId: string) => (myFeatures.value ?? []).filter((f) => f.listingId === listingId)
+const featureLabel = (f: any) => {
+  const place = PLACEMENT_LABELS[f.placement as FeaturePlacementKey]
+  if (f.state === 'pending') return `Solicitud pendiente de pago · ${place} · ref. ${f.ref}`
+  if (f.state === 'cancelled') return `Solicitud cancelada · ${place}${f.cancelReason ? ` · Motivo: ${f.cancelReason}` : ''}`
+  if (f.state === 'expired') return `Destacado vencido el ${formatRD(f.endsAt)} · ${place}`
+  return `Destacado en ${place} hasta ${formatRD(f.endsAt)}`
+}
+const promoteFor = ref<{ id: string; title: string } | null>(null)
+
+async function cancelFeature(f: any) {
+  if (!confirm('¿Cancelar esta solicitud de destacado?')) return
+  actionError.value = ''
+  try {
+    await $fetch(`/api/features/${f.id}`, { method: 'DELETE' })
+    await refreshFeatures()
+  } catch (err: any) {
+    actionError.value = err?.data?.statusMessage || 'No se pudo cancelar la solicitud.'
+  }
+}
 
 const actionError = ref('')
 const busyId = ref('')
@@ -199,6 +223,11 @@ const showVerifyModal = ref(false)
               <span class="inline-flex items-center gap-1"><Icon name="clock" class="w-3.5 h-3.5" />{{ statsById[listing.id]!.avgTourSeconds }}s</span>
               <span>· 30 días</span>
             </p>
+            <p v-for="f in featuresFor(listing.id)" :key="f.id" class="basis-full flex flex-wrap items-center gap-x-3 text-xs" style="color: var(--color-muted);" :class="{ 'opacity-70': f.state === 'cancelled' || f.state === 'expired' }">
+              <span>{{ featureLabel(f) }}</span>
+              <button v-if="f.state === 'pending'" type="button" class="font-semibold underline !py-0" @click="cancelFeature(f)">Cancelar solicitud</button>
+            </p>
+            <button v-if="listing.status === 'ACTIVE' && !listing.adminPausedAt" type="button" class="font-semibold underline" @click="promoteFor = { id: listing.id, title: listing.title }">Promocionar</button>
             <button type="button" class="font-semibold underline" @click="statsFor = { id: listing.id, title: listing.title }">Ver estadísticas</button>
             <NuxtLink :to="`/anuncio/${listing.slug}`" class="font-semibold underline">Ver</NuxtLink>
             <NuxtLink :to="`/publicar?id=${listing.id}`" class="font-semibold underline">Editar datos</NuxtLink>
@@ -267,6 +296,7 @@ const showVerifyModal = ref(false)
     </div>
 
     <ListingStatsModal :show="!!statsFor" :listing-id="statsFor?.id || ''" :title="statsFor?.title || ''" @close="statsFor = null" />
+    <PromoteModal :show="!!promoteFor" :listing-id="promoteFor?.id || ''" :title="promoteFor?.title || ''" @close="promoteFor = null" @done="refreshFeatures()" />
     <EditProfileModal :show="showEditModal" @close="showEditModal = false" />
     <VerifyEmailModal :show="showVerifyModal" @close="showVerifyModal = false" />
   </div>

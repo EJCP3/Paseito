@@ -3,6 +3,7 @@
 import type { ListingFiltersInput, CreateListingInput, UpdateListingInput } from '~~/shared/schemas/listing.schema'
 import { buildListingWhere, buildListingOrderBy } from '~~/server/lib/listingWhere'
 import { publicCoords } from '~~/server/lib/coords'
+import { activeFeatureWhere, featuredSelect, withFeatured } from '~~/server/lib/featureWhere'
 import { canPublish, nextOwnerStatus } from '~~/server/lib/listingRules'
 
 /**
@@ -31,27 +32,44 @@ export async function getListings(filters: ListingFiltersInput) {
   const { page, limit } = filters
 
   const where = buildListingWhere(filters)
+  const now = new Date()
+  const select = {
+    id: true, slug: true, type: true, mode: true, title: true, price: true, currency: true,
+    city: true, sector: true, bedrooms: true, bathrooms: true, areaM2: true,
+    latitude: true, longitude: true, ownerId: true, createdAt: true,
+    photos: { orderBy: { order: 'asc' }, take: 1, select: { thumbUrl: true, url: true } },
+    scenes: { orderBy: { order: 'asc' }, take: 1, select: { previewUrl: true } },
+    features: featuredSelect(now),
+  } as const
+  const skip = (page - 1) * limit
 
   try {
-    const [data, total] = await Promise.all([
-      prisma.listing.findMany({
-        where,
-        select: {
-          id: true, slug: true, type: true, mode: true, title: true, price: true, currency: true,
-          city: true, sector: true, bedrooms: true, bathrooms: true, areaM2: true,
-          latitude: true, longitude: true, ownerId: true, createdAt: true,
-          photos: { orderBy: { order: 'asc' }, take: 1, select: { thumbUrl: true, url: true } },
-          scenes: { orderBy: { order: 'asc' }, take: 1, select: { previewUrl: true } },
-        },
-        orderBy: buildListingOrderBy(filters.sort),
-        skip: (page - 1) * limit,
-        take: limit,
-      }),
-      prisma.listing.count({ where }),
-    ])
+    // Con orden "recent" y featuredFirst: primero los anuncios con ese espacio activo y luego el resto,
+    // en dos consultas (Prisma no ordena por una relación condicional). La ventana [skip, skip+limit)
+    // se reparte entre el tramo destacado (nFeatured anuncios) y el resto, sin repetir ni saltar.
+    const prio = filters.featuredFirst && (!filters.sort || filters.sort === 'recent') ? filters.featuredFirst : null
+    const fetchPage = async () => {
+      if (!prio) {
+        return prisma.listing.findMany({ where, select, orderBy: buildListingOrderBy(filters.sort), skip, take: limit })
+      }
+      const cond = activeFeatureWhere(now, [prio])
+      const orderBy = buildListingOrderBy('recent')
+      const featuredWhere = { AND: [where, { features: { some: cond } }] }
+      const nFeatured = await prisma.listing.count({ where: featuredWhere })
+      const head = skip < nFeatured
+        ? await prisma.listing.findMany({ where: featuredWhere, select, orderBy, skip, take: limit })
+        : []
+      if (head.length >= limit) return head
+      const tail = await prisma.listing.findMany({
+        where: { AND: [where, { features: { none: cond } }] },
+        select, orderBy, skip: Math.max(0, skip - nFeatured), take: limit - head.length,
+      })
+      return [...head, ...tail]
+    }
+    const [data, total] = await Promise.all([fetchPage(), prisma.listing.count({ where })])
 
     return {
-      data: data.map((l) => publicCoords(l)),
+      data: data.map((l) => publicCoords(withFeatured(l))),
       total,
       page,
       limit,

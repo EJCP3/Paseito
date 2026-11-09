@@ -21,6 +21,7 @@ export default defineEventHandler(async (event) => {
     maxArea: num(query.maxArea),
     search: query.search || undefined,
     sort: query.sort || undefined,
+    featuredFirst: query.featuredFirst || undefined,
     excludeId: query.excludeId || undefined,
     page: num(query.page) ?? 1,
     limit: num(query.limit) ?? 12,

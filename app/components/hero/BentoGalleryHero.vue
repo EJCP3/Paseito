@@ -1,11 +1,23 @@
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 
 const { $gsap: gsap, $Flip: Flip } = useNuxtApp()
 
-defineEmits(['selectImage'])
+const emit = defineEmits<{ (e: 'selectImage', slug: string): void }>()
 
-const galleryImages = [1, 2, 3, 4, 5, 1, 2, 3].map(n => `/images/portada${n}.webp`)
+// Anuncios reales (destacados primero); si faltan, se rellenan los 8 huecos con las imágenes estáticas (sin enlace)
+const STATIC = [1, 2, 3, 4, 5, 1, 2, 3].map(n => `/images/portada${n}.webp`)
+const { data: heroListings } = useFetch<{ id: string; slug: string; title: string; coverUrl: string }[]>('/api/hero-listings', { default: () => [] })
+const slots = computed(() => STATIC.map((src, i) => {
+  const l = (heroListings.value ?? [])[i]
+  return l ? { key: l.id, src: l.coverUrl, alt: l.title, slug: l.slug } : { key: `static-${i}`, src, alt: '', slug: '' }
+}))
+
+function pick(e: Event, slug: string) {
+  if (!slug) return
+  e.preventDefault()
+  emit('selectImage', slug)
+}
 
 const galleryWrapRef = ref<HTMLElement>()
 let flipCtx: any
@@ -49,6 +61,13 @@ const onResize = () => {
   resizeTimer = setTimeout(createTween, 150)
 }
 
+// Si los anuncios llegan después del montaje (navegación en cliente), se recalcula el Flip con las imágenes nuevas
+watch(() => (heroListings.value ?? []).map(l => l.id).join(), async () => {
+  if (!flipCtx) return
+  await nextTick()
+  createTween()
+})
+
 onMounted(() => {
   // Add small delay to ensure DOM is ready and fonts loaded
   setTimeout(() => {
@@ -67,9 +86,17 @@ onBeforeUnmount(() => {
 <template>
   <div ref="galleryWrapRef" class="gallery-wrap">
     <div id="gallery-8" class="gallery gallery--bento gallery--switch">
-      <div v-for="(img, i) in galleryImages" :key="i" class="gallery__item cursor-pointer" @click="$emit('selectImage', img)">
-        <img :src="img" alt="" width="400" height="300" :fetchpriority="i === 0 ? 'high' : undefined" :loading="i === 0 ? 'eager' : 'lazy'" decoding="async">
-      </div>
+      <component
+        :is="s.slug ? 'a' : 'div'"
+        v-for="(s, i) in slots"
+        :key="s.key"
+        :href="s.slug ? `/anuncio/${s.slug}` : undefined"
+        class="gallery__item"
+        :class="s.slug ? 'cursor-pointer' : ''"
+        @click="pick($event, s.slug)"
+      >
+        <img :src="s.src" :alt="s.alt" width="400" height="300" :fetchpriority="i === 0 ? 'high' : undefined" :loading="i === 0 ? 'eager' : 'lazy'" decoding="async">
+      </component>
     </div>
   </div>
 </template>

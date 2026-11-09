@@ -1,5 +1,6 @@
 // Service — Favoritos ("Mi Lista"), ligados al usuario logueado
 import { publicCoords } from '~~/server/lib/coords'
+import { featuredSelect, withFeatured } from '~~/server/lib/featureWhere'
 
 export async function toggleFavorite(userId: string, listingId: string) {
   const existing = await prisma.favorite.findUnique({
@@ -29,10 +30,11 @@ export async function getUserFavoriteListings(userId: string) {
         include: {
           photos: { orderBy: { order: 'asc' }, take: 1 },
           scenes: { orderBy: { order: 'asc' }, take: 1, select: { previewUrl: true } },
+          features: featuredSelect(new Date()),
         },
       },
     },
   })
 
-  return favorites.map((f) => publicCoords(f.listing, userId))
+  return favorites.map((f) => publicCoords(withFeatured(f.listing), userId))
 }

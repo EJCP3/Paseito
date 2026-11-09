@@ -108,22 +108,22 @@ describe('buildListingWhere — filtros de la Fase 5', () => {
 
 describe('buildListingOrderBy', () => {
   it('sin sort ordena por más reciente', () => {
-    expect(buildListingOrderBy(undefined)).toEqual([{ createdAt: 'desc' }])
+    expect(buildListingOrderBy(undefined)).toEqual([{ createdAt: 'desc' }, { id: 'desc' }])
   })
 
   it("'recent' ordena por más reciente", () => {
-    expect(buildListingOrderBy('recent')).toEqual([{ createdAt: 'desc' }])
+    expect(buildListingOrderBy('recent')).toEqual([{ createdAt: 'desc' }, { id: 'desc' }])
   })
 
-  it("'price_asc' ordena por precio ascendente y desempata por fecha", () => {
-    expect(buildListingOrderBy('price_asc')).toEqual([{ price: 'asc' }, { createdAt: 'desc' }])
+  it("'price_asc' ordena por precio ascendente y desempata por fecha e id", () => {
+    expect(buildListingOrderBy('price_asc')).toEqual([{ price: 'asc' }, { createdAt: 'desc' }, { id: 'desc' }])
   })
 
-  it("'price_desc' ordena por precio descendente y desempata por fecha", () => {
-    expect(buildListingOrderBy('price_desc')).toEqual([{ price: 'desc' }, { createdAt: 'desc' }])
+  it("'price_desc' ordena por precio descendente y desempata por fecha e id", () => {
+    expect(buildListingOrderBy('price_desc')).toEqual([{ price: 'desc' }, { createdAt: 'desc' }, { id: 'desc' }])
   })
 
   it('un valor desconocido cae en recent', () => {
-    expect(buildListingOrderBy('foo' as any)).toEqual([{ createdAt: 'desc' }])
+    expect(buildListingOrderBy('foo' as any)).toEqual([{ createdAt: 'desc' }, { id: 'desc' }])
   })
 })

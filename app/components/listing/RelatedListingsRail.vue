@@ -12,7 +12,7 @@ const { $gsap: gsap } = useNuxtApp()
 // Sin await: un componente async (top-level await) suspende la hidratación de
 // toda la página y los componentes .client (TourViewer) nunca llegan a montar.
 const { data } = useFetch('/api/listings', {
-  query: { excludeId: props.excludeId, limit: 6 },
+  query: { excludeId: props.excludeId, limit: 6, featuredFirst: 'SIDEBAR' }, // SIDEBAR activos primero (orden en servidor)
   lazy: true,
 })
 const related = computed<any[]>(() => (data.value as any)?.data ?? [])
@@ -89,8 +89,9 @@ const handleDockLeave = () => {
         v-for="l in related"
         :key="l.id"
         :to="`/anuncio/${l.slug}`"
-        class="w-[72px] h-[72px] rounded-3xl cursor-pointer flex-shrink-0 p-3 thumbnail-item"
+        class="w-[72px] h-[72px] rounded-3xl cursor-pointer flex-shrink-0 p-3 thumbnail-item relative"
       >
+        <span v-if="l.featuredPlacements?.includes('SIDEBAR')" class="absolute top-1 right-1 w-2.5 h-2.5 rounded-full" style="background: var(--color-neon); box-shadow: 0 0 0 2px #0D0D0D;" title="Destacado"><span class="sr-only">Destacado</span></span>
         <img :src="cld(coverImage(l), 'f_auto,q_auto,c_limit,w_200')" :alt="l.title" class="w-full h-full object-contain mix-blend-multiply" loading="lazy" width="72" height="72" >
       </NuxtLink>
     </div>
