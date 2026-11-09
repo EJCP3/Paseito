@@ -11,8 +11,8 @@ export async function toggleFavorite(userId: string, listingId: string) {
     return { favorited: false }
   }
 
-  const listing = await prisma.listing.findUnique({ where: { id: listingId }, select: { status: true } })
-  if (listing?.status !== 'ACTIVE') {
+  const listing = await prisma.listing.findUnique({ where: { id: listingId }, select: { status: true, deletedAt: true } })
+  if (listing?.status !== 'ACTIVE' || listing.deletedAt) {
     throw createError({ statusCode: 404, statusMessage: 'Anuncio no encontrado' })
   }
 
@@ -22,7 +22,7 @@ export async function toggleFavorite(userId: string, listingId: string) {
 
 export async function getUserFavoriteListings(userId: string) {
   const favorites = await prisma.favorite.findMany({
-    where: { userId, listing: { status: 'ACTIVE' } },
+    where: { userId, listing: { status: 'ACTIVE', deletedAt: null } },
     orderBy: { createdAt: 'desc' },
     include: {
       listing: {

@@ -3,10 +3,7 @@ import { addPhoto } from '~~/server/services/listing.service'
 import { isListingAssetUrl } from '~~/server/lib/assetUrl'
 
 export default defineEventHandler(async (event) => {
-  const session = await auth.api.getSession({ headers: event.headers })
-  if (!session?.user) {
-    throw createError({ statusCode: 401, statusMessage: 'No autenticado' })
-  }
+  const session = await requireUser(event)
 
   const listingId = getRouterParam(event, 'id')
   if (!listingId) {

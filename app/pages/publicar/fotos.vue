@@ -1,4 +1,5 @@
 <script setup lang="ts">
+definePageMeta({ middleware: 'auth' })
 /**
  * Página de subida de fotos — solo la foto de portada del anuncio.
  * La portada se persiste en el servidor (Photo con order 0) y se rehidrata al

@@ -8,6 +8,8 @@
  */
 import type { Photo } from '~~/shared/types/listing'
 
+definePageMeta({ middleware: 'auth' })
+
 useHead({ title: 'Editor de tour 360° — Paseito' })
 
 const route = useRoute()
@@ -179,8 +181,14 @@ async function handleDeleteScene(sceneId: string) {
   const scene = store.scenes.find((s) => s.id === sceneId)
   if (!scene) return
   if (!confirm(`¿Eliminar la escena "${scene.name}"?`)) return
-  await $fetch(`/api/tours/scenes/${sceneId}`, { method: 'DELETE' })
-  store.removeScene(sceneId)
+  try {
+    await $fetch(`/api/tours/scenes/${sceneId}`, { method: 'DELETE' })
+    store.removeScene(sceneId)
+    // El servidor ya quitó los hotspots que apuntaban a esta escena; reflejarlo aquí
+    for (const sc of store.scenes) sc.hotspots = sc.hotspots.filter((h) => h.targetSceneId !== sceneId)
+  } catch (err: any) {
+    uploadError.value = err?.data?.statusMessage || 'No se pudo eliminar la escena. Intenta de nuevo.'
+  }
 }
 
 async function handleDeletePhoto(photo: Photo) {
@@ -194,11 +202,16 @@ async function handleRenamePhoto(photo: Photo) {
 }
 
 // --- Hotspots ---
+// Sin id real (optimista) o mientras se guarda: no se puede editar ni borrar
+const hotspotBusy = (h: { id: string }) => store.isSaving || String(h.id).startsWith('temp-')
 const showHotspotForm = ref(false)
 const pendingYaw = ref(0)
 const pendingPitch = ref(0)
+const editingHotspotId = ref<string | null>(null)
+const editingHotspot = computed(() => store.activeScene?.hotspots.find((h) => h.id === editingHotspotId.value) ?? null)
 
 function handleHotspotAdd(data: { yaw: number; pitch: number; sceneId: string }) {
+  editingHotspotId.value = null
   pendingYaw.value = data.yaw
   pendingPitch.value = data.pitch
   showHotspotForm.value = true
@@ -220,6 +233,27 @@ async function handleHotspotSave(data: {
 
   // Optimista: se agrega con un id temporal y aparece de inmediato sobre la
   // esfera (TourEditor observa scene.hotspots y re-renderiza los markers).
+  // Edición de un hotspot existente: se actualiza en su sitio y se persiste la escena
+  if (editingHotspotId.value) {
+    const target = scene.hotspots.find((h) => h.id === editingHotspotId.value)
+    editingHotspotId.value = null
+    if (!target) return
+    const backup = { ...target }
+    Object.assign(target, {
+      type: data.type as any,
+      title: data.title ?? null,
+      text: data.text ?? null,
+      targetSceneId: data.targetSceneId ?? null,
+    })
+    try {
+      await store.saveHotspots(sceneId)
+    } catch {
+      Object.assign(target, backup)
+      uploadError.value = 'No se pudo guardar el punto de interés. Intenta de nuevo.'
+    }
+    return
+  }
+
   const optimistic = {
     id: `temp-${Date.now()}`,
     type: data.type as any,
@@ -242,6 +276,28 @@ async function handleHotspotSave(data: {
   }
 }
 
+function startEditHotspot(h: { id: string; yaw: number; pitch: number }) {
+  editingHotspotId.value = h.id
+  pendingYaw.value = h.yaw
+  pendingPitch.value = h.pitch
+  showHotspotForm.value = true
+}
+
+async function handleDeleteHotspot(h: { id: string }) {
+  if (!confirm('¿Eliminar este punto de interés?')) return
+  const sceneId = store.activeSceneId
+  const scene = store.scenes.find((s) => s.id === sceneId)
+  if (!scene) return
+  const backup = [...scene.hotspots]
+  store.removeHotspot(sceneId, h.id)
+  try {
+    await store.saveHotspots(sceneId)
+  } catch {
+    scene.hotspots = backup
+    uploadError.value = 'No se pudo eliminar el punto de interés. Intenta de nuevo.'
+  }
+}
+
 async function handleRenameScene(sceneId: string, name: string) {
   store.renameScene(sceneId, name)
   await $fetch(`/api/tours/scenes/${sceneId}`, { method: 'PATCH', body: { name } })
@@ -250,6 +306,7 @@ async function handleRenameScene(sceneId: string, name: string) {
 // --- Publicar: redirige al anuncio recién creado ---
 const isPublishing = ref(false)
 const publishError = ref('')
+const contactConsent = ref(false)
 const { sweep } = useGlimmSweep()
 
 async function publishListing() {
@@ -264,14 +321,13 @@ async function publishListing() {
 
   isPublishing.value = true
   try {
-    // 1. Trabajo de servidor: el anuncio ya quedó ACTIVE al crearse, solo
-    //    aseguramos tener el slug para redirigir (aquí iría cualquier guardado
-    //    final que se agregue a futuro). El botón queda en "Publicando…".
-    let slug = listingSlug.value
-    if (!slug) {
-      const listing = await $fetch<any>(`/api/listings/${listingId.value}`)
-      slug = listing.slug
-    }
+    // 1. Trabajo de servidor: DRAFT/PAUSED → ACTIVE (exige consentimiento de contacto).
+    //    El botón queda en "Publicando…".
+    const published = await $fetch<{ slug: string }>(`/api/listings/${listingId.value}/publish`, {
+      method: 'POST',
+      body: { contactConsent: contactConsent.value },
+    })
+    const slug = published.slug || listingSlug.value
     if (!slug) throw new Error('sin slug')
 
     // 2. Precargar la portada del destino ANTES de animar, para que la página
@@ -285,8 +341,8 @@ async function publishListing() {
       await navigateTo(`/anuncio/${slug}`)
       await nextTick()
     })
-  } catch {
-    publishError.value = 'No se pudo publicar el anuncio. Intenta de nuevo.'
+  } catch (err: any) {
+    publishError.value = err?.data?.statusMessage || 'No se pudo publicar el anuncio. Intenta de nuevo.'
     isPublishing.value = false
   }
 }
@@ -387,6 +443,22 @@ async function publishListing() {
             Sube tu primera imagen panorámica 360° para comenzar a crear el tour
           </p>
         </div>
+
+        <!-- Puntos de interés de la escena activa -->
+        <ul v-if="store.activeScene?.hotspots.length" class="mt-4 flex flex-col gap-2">
+          <li
+            v-for="h in store.activeScene.hotspots"
+            :key="h.id"
+            class="flex items-center justify-between gap-3 px-3 py-2 rounded-xl text-sm"
+            style="border: 1px solid var(--color-border); background: var(--color-surface);"
+          >
+            <span class="truncate">{{ h.title || (h.type === 'LINK' ? 'Enlace a otra escena' : 'Información') }}</span>
+            <span class="flex gap-3 flex-shrink-0">
+              <button type="button" class="font-semibold underline disabled:opacity-40 disabled:no-underline" :disabled="hotspotBusy(h)" @click="startEditHotspot(h)">Editar</button>
+              <button type="button" class="font-semibold underline text-red-600 disabled:opacity-40 disabled:no-underline" :disabled="hotspotBusy(h)" @click="handleDeleteHotspot(h)">Eliminar</button>
+            </span>
+          </li>
+        </ul>
       </section>
 
       <!-- SECCIÓN: Fotos normales -->
@@ -469,21 +541,27 @@ async function publishListing() {
       :pitch="pendingPitch"
       :scene-id="store.activeSceneId"
       :scenes="store.scenes"
-      @close="showHotspotForm = false"
+      :editing-hotspot="editingHotspot"
+      @close="showHotspotForm = false; editingHotspotId = null"
       @save="handleHotspotSave"
     />
 
-    <p v-if="publishError" class="text-sm text-red-600 mt-6">{{ publishError }}</p>
+    <label class="flex items-start gap-2.5 mt-8 text-sm cursor-pointer">
+      <input v-model="contactConsent" type="checkbox" class="mt-0.5 w-4 h-4 flex-shrink-0">
+      <span>Acepto que mi número de contacto sea visible públicamente</span>
+    </label>
+
+    <p v-if="publishError" class="text-sm text-red-600 mt-3">{{ publishError }}</p>
 
     <!-- Actions -->
-    <div class="flex gap-4 mt-8">
+    <div class="flex gap-4 mt-4">
       <NuxtLink :to="`/publicar/fotos?id=${listingId}`" class="btn rounded-full flex-1" style="border: 1px solid var(--color-border); background: transparent; color: #171717;">
         Volver
       </NuxtLink>
       <button
         id="publish-listing-btn"
         class="btn btn-neon flex-1"
-        :disabled="isPublishing || loadingListing || !!pendingUploads.length"
+        :disabled="isPublishing || loadingListing || !!pendingUploads.length || !contactConsent"
         @click="publishListing"
       >
         {{ isPublishing ? 'Publicando…' : pendingUploads.length ? 'Subiendo imágenes…' : 'Publicar anuncio' }}

@@ -5,5 +5,7 @@ export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, 'id')
   if (!id) throw createError({ statusCode: 400, statusMessage: 'ID requerido' })
 
-  return getAvailability(id)
+  // Sesión opcional: el dueño puede ver la disponibilidad de su anuncio no publicado
+  const session = await auth.api.getSession({ headers: event.headers }).catch(() => null)
+  return getAvailability(id, session?.user?.id)
 })

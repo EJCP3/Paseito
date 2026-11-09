@@ -8,10 +8,10 @@ export async function createScene(data: CreateSceneInput) {
   // Verificar que el listado existe
   const listing = await prisma.listing.findUnique({
     where: { id: data.listingId },
-    select: { id: true },
+    select: { id: true, deletedAt: true },
   })
 
-  if (!listing) {
+  if (!listing || listing.deletedAt) {
     throw createError({ statusCode: 404, statusMessage: 'Anuncio no encontrado' })
   }
 
@@ -22,14 +22,9 @@ export async function createScene(data: CreateSceneInput) {
  * Renombrar una escena (solo el dueño del anuncio)
  */
 export async function updateScene(id: string, ownerId: string, data: UpdateSceneInput) {
-  const scene = await prisma.scene.findUnique({
-    where: { id },
-    select: { listing: { select: { ownerId: true } } },
-  })
-
-  if (!scene || scene.listing.ownerId !== ownerId) {
-    throw createError({ statusCode: 403, statusMessage: 'No tienes permiso para editar esta escena' })
-  }
+  const scene = await prisma.scene.findUnique({ where: { id }, select: { listingId: true } })
+  if (!scene) throw createError({ statusCode: 404, statusMessage: 'Escena no encontrada' })
+  await requireOwnedListing(scene.listingId, ownerId)
 
   return prisma.scene.update({ where: { id }, data })
 }
@@ -44,12 +39,10 @@ export async function updateHotspots(data: UpdateHotspotsInput, userId: string) 
   // La escena debe existir y ser de un anuncio del usuario
   const scene = await prisma.scene.findUnique({
     where: { id: sceneId },
-    select: { listingId: true, listing: { select: { ownerId: true } } },
+    select: { listingId: true },
   })
-
-  if (!scene || scene.listing.ownerId !== userId) {
-    throw createError({ statusCode: 403, statusMessage: 'No tienes permiso para editar esta escena' })
-  }
+  if (!scene) throw createError({ statusCode: 404, statusMessage: 'Escena no encontrada' })
+  await requireOwnedListing(scene.listingId, userId)
 
   // Cada targetSceneId debe ser una escena del mismo anuncio
   const targets = [...new Set(hotspots.map((h) => h.targetSceneId).filter((t): t is string => !!t))]
@@ -82,5 +75,9 @@ export async function updateHotspots(data: UpdateHotspotsInput, userId: string) 
  * Eliminar una escena y sus hotspots (cascade)
  */
 export async function deleteScene(sceneId: string) {
-  return prisma.scene.delete({ where: { id: sceneId } })
+  // Los hotspots de otras escenas que apuntaban a esta quedarían rotos: se quitan
+  return prisma.$transaction([
+    prisma.hotspot.deleteMany({ where: { targetSceneId: sceneId } }),
+    prisma.scene.delete({ where: { id: sceneId } }),
+  ])
 }

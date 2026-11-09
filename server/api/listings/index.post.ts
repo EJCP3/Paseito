@@ -4,10 +4,7 @@ import { createListing } from '~~/server/services/listing.service'
 
 
 export default defineEventHandler(async (event) => {
-  const session = await auth.api.getSession({ headers: event.headers })
-  if (!session?.user) {
-    throw createError({ statusCode: 401, statusMessage: 'No autenticado' })
-  }
+  const session = await requireUser(event)
   if (!session.user.emailVerified) {
     throw createError({ statusCode: 403, statusMessage: 'Debes verificar tu correo antes de publicar' })
   }

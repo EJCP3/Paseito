@@ -175,7 +175,7 @@ function backToHome() {
                 {{ c.label }}
               </a>
             </template>
-            <a v-else id="listing-whatsapp-btn" :href="whatsappUrl" target="_blank" class="btn btn-neon btn-sm">
+            <a v-else-if="listing.owner?.phone" id="listing-whatsapp-btn" :href="whatsappUrl" target="_blank" class="btn btn-neon btn-sm">
               Contactar por WhatsApp
             </a>
             <button
@@ -327,7 +327,7 @@ function backToHome() {
                 </a>
               </div>
             </template>
-            <a v-else :href="whatsappUrl" target="_blank" class="btn btn-neon w-full">
+            <a v-else-if="listing.owner?.phone" :href="whatsappUrl" target="_blank" class="btn btn-neon w-full">
               Contactar por WhatsApp
             </a>
           </div>

@@ -5,10 +5,7 @@ import { NearbyPlacesQuerySchema } from '~~/shared/schemas/nearbyPlace.schema'
 import { searchNearbyPlaces } from '~~/server/services/nearbyPlaces.service'
 
 export default defineEventHandler(async (event) => {
-  const session = await auth.api.getSession({ headers: event.headers })
-  if (!session?.user) {
-    throw createError({ statusCode: 401, statusMessage: 'No autenticado' })
-  }
+  await requireUser(event)
 
   const body = await readBody(event)
   const { lat, lng, excludeNames } = NearbyPlacesQuerySchema.parse(body)

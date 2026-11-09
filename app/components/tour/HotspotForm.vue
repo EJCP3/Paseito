@@ -56,12 +56,12 @@ function handleSave() {
 
 // Reset al abrir
 watch(() => props.show, (val) => {
-  if (val && !props.editingHotspot) {
-    type.value = HotspotType.LINK
-    title.value = ''
-    text.value = ''
-    targetSceneId.value = ''
-  }
+  if (!val) return
+  const h = props.editingHotspot
+  type.value = h?.type || HotspotType.LINK
+  title.value = h?.title || ''
+  text.value = h?.text || ''
+  targetSceneId.value = h?.targetSceneId || ''
 })
 </script>
 

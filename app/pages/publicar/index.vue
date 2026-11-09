@@ -24,14 +24,22 @@ const publishTypes = [
   { type: ListingType.VILLA, icon: 'villa', disabled: false },
 ]
 
+// key por fullPath: /publicar?id=X → /publicar no reutiliza el formulario relleno
+definePageMeta({ middleware: 'auth', key: r => r.fullPath })
+
 useHead({
   title: 'Publicar — Paseito',
 })
 
 const router = useRouter()
+const route = useRoute()
+// ?id= → modo edición: carga el anuncio del dueño y guarda con PATCH (el tipo no cambia)
+const editId = computed(() => (typeof route.query.id === 'string' ? route.query.id : ''))
+const isEditing = computed(() => !!editId.value)
+const loadingEdit = ref(!!editId.value)
 const { user, isAuthenticated } = useAuth()
 const showVerifyModal = ref(false)
-const needsVerification = computed(() => isAuthenticated.value && !user.value?.emailVerified)
+const needsVerification = computed(() => !isEditing.value && isAuthenticated.value && !user.value?.emailVerified)
 
 const form = reactive({
   type: '' as string,
@@ -113,7 +121,7 @@ const contacts = reactive<Record<string, { value: string; show: boolean }>>(
 
 // Prellenar cuando la sesión esté disponible (marca por defecto las que ya tiene)
 watch(user, (u) => {
-  if (!u) return
+  if (!u || isEditing.value) return
   for (const c of contactChannels) {
     const v = (u as any)?.[c.profileKey] || ''
     if (v && !contacts[c.type]!.value) {
@@ -154,6 +162,55 @@ const contactErrors = computed<Record<string, string>>(() => {
   return errs
 })
 const hasContactErrors = computed(() => Object.keys(contactErrors.value).length > 0)
+
+// Rellena el formulario desde un anuncio existente (Decimal llega como string; contacts es JSON)
+function loadForEdit(l: Record<string, any>) {
+  const num = (v: unknown) => (v === null || v === undefined || v === '' ? null : Number(v))
+  form.type = l.type
+  form.title = l.title ?? ''
+  form.description = l.description ?? ''
+  form.price = form.type === ListingType.VILLA ? null : num(l.price)
+  form.currency = l.currency ?? 'USD'
+  form.sector = l.sector ?? ''
+  form.city = l.city ?? ''
+  form.latitude = l.latitude ?? null
+  form.longitude = l.longitude ?? null
+  for (const k of ['areaM2', 'bedrooms', 'bathrooms', 'parking', 'constructionYear'] as const) form[k] = num(l[k])
+  form.furnished = l.furnished ?? ''
+  form.condition = l.condition ?? ''
+  form.petsAllowed = l.petsAllowed ?? null
+  form.amenities = [...(l.amenities ?? [])]
+
+  const decimals = ['maintenanceFee', 'pricePerDay', 'pricePerWeek', 'securityDeposit']
+  const fill = (target: Record<string, any>) => {
+    for (const k of Object.keys(target)) {
+      const v = l[k]
+      if (v === null || v === undefined) continue
+      target[k] = Array.isArray(v) ? [...v] : decimals.includes(k) ? Number(v) : v
+    }
+  }
+  if (form.type === ListingType.APARTMENT) fill(apartmentFields)
+  if (form.type === ListingType.HOUSE) fill(houseFields)
+  if (form.type === ListingType.VILLA) fill(villaFields)
+
+  // Los contactos guardados mandan sobre el prellenado del perfil
+  for (const c of contactChannels) contacts[c.type] = { value: '', show: false }
+  for (const c of Array.isArray(l.contacts) ? l.contacts : []) {
+    if (contacts[c?.type]) contacts[c.type] = { value: String(c.value ?? ''), show: true }
+  }
+  substep.value = 1 // el tipo ya está decidido
+}
+
+onMounted(async () => {
+  if (!editId.value) return
+  try {
+    loadForEdit(await $fetch<any>(`/api/listings/${editId.value}`))
+  } catch {
+    error.value = 'No se pudo cargar el anuncio para editarlo.'
+  } finally {
+    loadingEdit.value = false
+  }
+})
 
 const isSubmitting = ref(false)
 const error = ref<string | null>(null)
@@ -349,7 +406,22 @@ async function handleSubmit() {
     const chosenContacts = contactChannels
       .filter(c => contacts[c.type]!.show && contacts[c.type]!.value.trim())
       .map(c => ({ type: c.type, value: contacts[c.type]!.value.trim() }))
-    if (chosenContacts.length) body.contacts = chosenContacts
+    // En edición siempre se envía (lista vacía = quitar todos); al crear, solo si hay
+    if (isEditing.value || chosenContacts.length) body.contacts = chosenContacts
+
+    if (isEditing.value) {
+      delete body.type // el tipo no se cambia
+      // Opcionales vaciados → null para que el servidor los borre (solo columnas nullable)
+      const clearable = ['areaM2', 'bedrooms', 'bathrooms', 'parking', 'sector', 'furnished', 'petsAllowed', 'condition', 'constructionYear',
+        ...(form.type === ListingType.APARTMENT ? ['floorNumber', 'totalFloors', 'hasElevator', 'water24h', 'power24h', 'hasBalcony', 'maintenanceFee'] : []),
+        ...(form.type === ListingType.HOUSE ? ['floors', 'hasPatio', 'patioSize', 'hasPool', 'hasGarage', 'garageSpots', 'hasCistern', 'hasGenerator', 'landAreaM2'] : []),
+        ...(form.type === ListingType.VILLA ? ['villaPoolType', 'villaPoolSize', 'guestCapacity', 'bedsCount', 'pricePerWeek', 'minNights', 'securityDeposit', 'cancellationPolicy', 'checkInTime', 'checkOutTime'] : []),
+      ]
+      for (const k of clearable) if (!(k in body)) body[k] = null
+      await $fetch(`/api/listings/${editId.value}`, { method: 'PATCH', body })
+      await router.push('/cuenta')
+      return
+    }
 
     const listing = await $fetch('/api/listings', { method: 'POST', body })
     const listingId = (listing as any).id
@@ -370,7 +442,7 @@ async function handleSubmit() {
     // Redirigir al paso de fotos
     router.push(`/publicar/fotos?id=${listingId}`)
   } catch (err: any) {
-    error.value = err.data?.message || err.message || 'Error al crear el anuncio'
+    error.value = err.data?.message || err.data?.statusMessage || err.message || 'Error al guardar el anuncio'
   } finally {
     isSubmitting.value = false
   }
@@ -411,8 +483,10 @@ async function handleSubmit() {
     </div>
 
     <h1 class="text-3xl font-black tracking-tight mb-2" style="font-family: var(--font-heading);">
-      Publicar anuncio
+      {{ isEditing ? 'Editar anuncio' : 'Publicar anuncio' }}
     </h1>
+
+    <div v-if="loadingEdit" class="py-16 text-center" style="color: var(--color-muted);">Cargando…</div>
 
     <!-- Bloqueo por correo sin verificar -->
     <div v-if="needsVerification" class="text-center py-16 rounded-2xl" style="background: #fef3c7; border: 2px dashed #f59e0b;">
@@ -426,7 +500,7 @@ async function handleSubmit() {
       </button>
     </div>
 
-    <template v-else>
+    <template v-else-if="!loadingEdit">
       <!-- Mini-progreso de los pasos de "Datos" -->
       <div class="mb-6">
         <div class="flex items-center justify-between mb-2">
@@ -457,9 +531,9 @@ async function handleSubmit() {
               v-for="opt in publishTypes"
               :key="opt.type"
               type="button"
-              :disabled="opt.disabled"
+              :disabled="opt.disabled || isEditing"
               class="relative p-4 rounded-xl border-2 text-center transition-all"
-              :class="opt.disabled
+              :class="opt.disabled || isEditing
                 ? 'border-[var(--color-border)] opacity-50 cursor-not-allowed'
                 : (form.type === opt.type ? 'border-[var(--color-neon)] bg-[var(--color-neon)]/10 cursor-pointer' : 'border-[var(--color-border)] hover:border-gray-300 cursor-pointer')"
               @click="!opt.disabled && selectType(opt.type)"
@@ -705,7 +779,7 @@ async function handleSubmit() {
             :class="{ 'opacity-60': !stepValid }"
             :disabled="isSubmitting"
           >
-            {{ isSubmitting ? 'Publicando...' : 'Continuar → Fotos' }}
+            {{ isSubmitting ? 'Guardando...' : isEditing ? 'Guardar cambios' : 'Continuar → Fotos' }}
           </button>
         </div>
       </form>
