@@ -23,6 +23,16 @@ const initials = computed(() => {
 const STATUS_LABELS: Record<string, string> = { DRAFT: 'Borrador', ACTIVE: 'Activo', PAUSED: 'Pausado', PENDING_REVIEW: 'En revisión', SOLD: 'Vendido' }
 const STATUS_COLORS: Record<string, string> = { DRAFT: '#6b7280', ACTIVE: '#16a34a', PAUSED: '#d97706', PENDING_REVIEW: '#2563eb', SOLD: '#6b7280' }
 
+// Estadísticas de 30 días de todos mis anuncios: una sola petición (GET /api/listings/mine/stats)
+type Stat = { views: number; contactClicks: number; avgTourSeconds: number }
+const statsById = ref<Record<string, Stat>>({})
+onMounted(() => {
+  $fetch<Record<string, Stat>>('/api/listings/mine/stats', { query: { days: 30 } })
+    .then((s) => { statsById.value = s })
+    .catch(() => {})
+})
+const statsFor = ref<{ id: string; title: string } | null>(null)
+
 const actionError = ref('')
 const busyId = ref('')
 
@@ -183,6 +193,13 @@ const showVerifyModal = ref(false)
             <span v-if="listing.adminPausedAt" class="basis-full text-xs text-amber-700">
               Motivo: {{ listing.adminPausedReason || 'sin especificar' }}
             </span>
+            <p v-if="statsById[listing.id]" class="basis-full flex items-center gap-3 text-xs" style="color: var(--color-muted);" aria-label="Estadísticas de los últimos 30 días">
+              <span class="inline-flex items-center gap-1"><Icon name="eye" class="w-3.5 h-3.5" />{{ statsById[listing.id]!.views }}</span>
+              <span class="inline-flex items-center gap-1"><Icon name="chat" class="w-3.5 h-3.5" />{{ statsById[listing.id]!.contactClicks }}</span>
+              <span class="inline-flex items-center gap-1"><Icon name="clock" class="w-3.5 h-3.5" />{{ statsById[listing.id]!.avgTourSeconds }}s</span>
+              <span>· 30 días</span>
+            </p>
+            <button type="button" class="font-semibold underline" @click="statsFor = { id: listing.id, title: listing.title }">Ver estadísticas</button>
             <NuxtLink :to="`/anuncio/${listing.slug}`" class="font-semibold underline">Ver</NuxtLink>
             <NuxtLink :to="`/publicar?id=${listing.id}`" class="font-semibold underline">Editar datos</NuxtLink>
             <NuxtLink :to="`/publicar/fotos?id=${listing.id}`" class="font-semibold underline">Fotos y tour</NuxtLink>
@@ -249,6 +266,7 @@ const showVerifyModal = ref(false)
       </form>
     </div>
 
+    <ListingStatsModal :show="!!statsFor" :listing-id="statsFor?.id || ''" :title="statsFor?.title || ''" @close="statsFor = null" />
     <EditProfileModal :show="showEditModal" @close="showEditModal = false" />
     <VerifyEmailModal :show="showVerifyModal" @close="showVerifyModal = false" />
   </div>

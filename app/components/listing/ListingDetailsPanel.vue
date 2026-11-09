@@ -10,6 +10,8 @@ const props = defineProps<{
   listing: ListingFull
 }>()
 
+const { track } = useListingEvents()
+
 const activeAccordion = ref<string>('descripcion')
 
 // Mapa y calendario (Leaflet / v-calendar) se montan la primera vez que se abre
@@ -201,6 +203,7 @@ async function copyListingLink() {
                   :href="whatsappUrl"
                   target="_blank"
                   class="btn btn-sm btn-neon"
+                  @click="track(listing.id, 'CONTACT_CLICK', { channel: 'whatsapp' })"
                 >
                   WhatsApp
                 </a>

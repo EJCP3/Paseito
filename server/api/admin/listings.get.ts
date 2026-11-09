@@ -29,5 +29,13 @@ export default defineEventHandler(async (event) => {
     }),
     prisma.listing.count({ where }),
   ])
-  return { data, total, page, totalPages: Math.ceil(total / TAKE) }
+  // Vistas y contactos de los últimos 30 días (agregado en BD, solo los anuncios de la página)
+  const counts = await prisma.listingEvent.groupBy({
+    by: ['listingId', 'type'],
+    where: { listingId: { in: data.map((l) => l.id) }, type: { in: ['VIEW', 'CONTACT_CLICK'] }, createdAt: { gte: new Date(Date.now() - 30 * 86_400_000) } },
+    _count: { _all: true },
+  })
+  const stat = (id: string, type: string) => counts.find((c) => c.listingId === id && c.type === type)?._count._all ?? 0
+  const withStats = data.map((l) => ({ ...l, views30: stat(l.id, 'VIEW'), contacts30: stat(l.id, 'CONTACT_CLICK') }))
+  return { data: withStats, total, page, totalPages: Math.ceil(total / TAKE) }
 })

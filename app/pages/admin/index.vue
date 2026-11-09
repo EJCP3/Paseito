@@ -140,7 +140,7 @@ const card = 'rounded-2xl bg-white p-4 flex flex-col gap-2 border border-gray-20
           <span class="text-xs font-bold rounded-full bg-gray-200 px-2 py-0.5">{{ STATUS_LABELS[l.status] }}</span>
           <span v-if="l.adminPausedAt" class="text-xs font-bold rounded-full bg-amber-200 px-2 py-0.5">Moderación</span>
         </div>
-        <p class="text-xs break-all" style="color: var(--color-muted);">{{ l.owner.name }} · {{ l.owner.email }} · {{ fmt(l.createdAt) }}</p>
+        <p class="text-xs break-all" style="color: var(--color-muted);">{{ l.owner.name }} · {{ l.owner.email }} · {{ fmt(l.createdAt) }} · {{ l.views30 }} vistas · {{ l.contacts30 }} contactos (30 d)</p>
         <p v-if="l.adminPausedReason" class="text-xs">Motivo: {{ l.adminPausedReason }}</p>
         <div class="flex flex-wrap gap-2 mt-1">
           <NuxtLink :to="`/anuncio/${l.slug}`" target="_blank" :class="btn">Ver</NuxtLink>

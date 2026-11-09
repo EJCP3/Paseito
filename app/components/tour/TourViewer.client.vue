@@ -20,6 +20,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'scene-change', sceneId: string): void
+  (e: 'ready'): void
 }>()
 
 const containerRef = ref<HTMLElement>()
@@ -128,6 +129,7 @@ onMounted(async () => {
   // Al estar listo, re-mide y re-renderiza tras el layout definitivo.
   // Esto evita el canvas en blanco cuando la página se carga completa (reload).
   viewer.addEventListener('ready', () => {
+    emit('ready')
     requestAnimationFrame(() => {
       viewer?.autoSize()
       viewer?.needsUpdate()

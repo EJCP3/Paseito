@@ -33,7 +33,7 @@ const providers = [
           <li><strong>Anuncios:</strong> descripción, precio, fotos, panorámicas, ubicación y los contactos que decidas mostrar públicamente.</li>
           <li><strong>Sesión:</strong> datos técnicos de la sesión (dirección IP y navegador) para mantenerla segura.</li>
           <li><strong>Reportes:</strong> el motivo y los detalles que envíes; si has iniciado sesión, quedan asociados a tu cuenta.</li>
-          <li><strong>Estadísticas de uso de anuncios:</strong> eventos anónimos (por ejemplo, visitas) que no incluyen IP ni identificador de usuario.</li>
+          <li><strong>Estadísticas de uso de anuncios:</strong> eventos anónimos (ver el apartado 9) que no incluyen IP ni identificador de usuario.</li>
         </ul>
       </section>
 
@@ -57,7 +57,7 @@ const providers = [
 
       <section>
         <h2>6. Cuánto tiempo los conservamos</h2>
-        <p>Mientras tu cuenta esté activa. Al eliminar tu cuenta anonimizamos tus datos personales y tus anuncios dejan de mostrarse; podemos conservar registros mínimos de moderación y reportes por seguridad y obligaciones legales. Los eventos anónimos de estadísticas se purgan periódicamente.</p>
+        <p>Mientras tu cuenta esté activa. Al eliminar tu cuenta anonimizamos tus datos personales y tus anuncios dejan de mostrarse; podemos conservar registros mínimos de moderación y reportes por seguridad y obligaciones legales. Los eventos anónimos de estadísticas se conservan 13 meses.</p>
       </section>
 
       <section>
@@ -71,7 +71,17 @@ const providers = [
       </section>
 
       <section>
-        <h2>9. Cambios</h2>
+        <h2>9. Estadísticas de anuncios</h2>
+        <p>Para que los vendedores sepan si su anuncio funciona medimos, sin herramientas externas ni cookies de seguimiento:</p>
+        <ul class="mt-2">
+          <li>vistas del anuncio, aperturas del tour 360° y tiempo que el visor está visible;</li>
+          <li>clics en los enlaces de contacto, con el canal (WhatsApp, Instagram, Facebook, TikTok o sitio web).</li>
+        </ul>
+        <p class="mt-2">En la base de datos solo se guarda el anuncio, el tipo de evento, el valor (segundos o canal) y la fecha. <strong>No guardamos tu dirección IP ni tu usuario.</strong> Para no contar varias veces la misma visita calculamos, en memoria del servidor, una huella irreversible de tu IP mezclada con una sal que cambia cada día; esa huella no se almacena y no permite seguirte de un día a otro. No registramos tus propias visitas cuando has iniciado sesión. Respetamos las señales Do Not Track y Global Privacy Control: si están activas, no enviamos ningún evento. Los eventos se conservan 13 meses y luego se eliminan.</p>
+      </section>
+
+      <section>
+        <h2>10. Cambios</h2>
         <p>Si cambiamos esta política lo avisaremos en la plataforma. Consulta también los <NuxtLink to="/terminos" class="underline">Términos y condiciones</NuxtLink>.</p>
       </section>
     </div>
